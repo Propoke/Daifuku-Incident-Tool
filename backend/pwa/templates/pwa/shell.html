@@ -1,0 +1,27 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CMMS Technician</title>
+  <link rel="manifest" href="{% static 'pwa/manifest.json' %}">
+  <link rel="apple-touch-icon" href="{% static 'pwa/icon-192.png' %}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0b1d3a">
+  <link rel="stylesheet" href="{% static 'pwa/style.css' %}">
+</head>
+<body>
+  <header>
+    <h1>CMMS</h1>
+    <span class="muted">{{ user.get_username }}</span>
+  </header>
+  {% csrf_token %}
+  <main id="app"></main>
+  <nav class="tabs">
+    <button id="tab-tickets" data-tab="tickets" class="active">My tickets</button>
+    <button id="tab-scan" data-tab="scan">Scan</button>
+  </nav>
+  <script src="{% static 'pwa/app.js' %}"></script>
+</body>
+</html>

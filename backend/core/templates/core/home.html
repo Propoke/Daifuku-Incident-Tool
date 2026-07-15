@@ -7,7 +7,7 @@
 <body>
   <h1>CMMS walking skeleton</h1>
   <p>Logged in as {{ user.email }} ({{ user.get_username }})</p>
-  <p><a href="/admin/">Admin</a> | <a href="/reports/">Reports</a> | <a href="/dispatch/">Dispatch board</a> | <a href="{% url 'report-issue' %}">Report an issue</a> | <a href="{% url 'my-tickets' %}">My tickets</a></p>
+  <p><a href="/admin/">Admin</a> | <a href="/reports/">Reports</a> | <a href="/dispatch/">Dispatch board</a> | <a href="/app/">Technician app</a> | <a href="{% url 'report-issue' %}">Report an issue</a> | <a href="{% url 'my-tickets' %}">My tickets</a></p>
   <a href="/oidc/logout/">Log out</a>
 </body>
 </html>

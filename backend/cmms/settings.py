@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "reporting",
     "safety",
     "portal",
+    "pwa",
 ]
 
 MIDDLEWARE = [

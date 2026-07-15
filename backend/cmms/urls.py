@@ -8,5 +8,6 @@ urlpatterns = [
     path("reports/", include("reporting.urls")),
     path("dispatch/", include("teams.urls")),
     path("portal/", include("portal.urls")),
+    path("app/", include("pwa.urls")),
     path("", include("core.urls")),
 ]

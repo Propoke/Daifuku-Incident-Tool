@@ -4,9 +4,9 @@ Custom, self-hosted CMMS for maintaining material handling/automation equipment,
 
 - [`docs/cmms-feature-draft.md`](docs/cmms-feature-draft.md) — feature list, high-level description, and the architectural risk audit.
 - [`docs/infrastructure-setup-plan.md`](docs/infrastructure-setup-plan.md) — tech stack, deployment topology, networking, auth, and backup strategy.
-- [`docs/mobile-app-backlog.md`](docs/mobile-app-backlog.md) — not built yet: plan for a technician phone app (barcode scan → stock/location lookup, book a part onto a ticket, work tickets from the phone), and the API it'll consume.
+- [`docs/mobile-app-backlog.md`](docs/mobile-app-backlog.md) — the technician PWA (`/app/`): what shipped, and the known gaps (offline support, real-device camera testing).
 
-Started as a **walking skeleton** (Traefik + PostgreSQL + Django with Entra ID login) to validate the deployment shape and auth flow before building on top of it. Now also includes: the Asset/Configuration data model with per-asset ownership tracking and a full history view (`assets`, `reporting/assets/<id>/history/`), Work Orders/incidents (`workorders`), RBAC roles + site-scoped data access (`core`, `assets/access.py` — site access is the sole visibility gate, independent of who owns an asset), teams and shifts (`teams`), PM scheduling with Celery-driven auto-ticketing (`maintenance`), stock/reservation tracking (`inventory`), a token-authenticated API for the future mobile app (`mobile_api`), an MTTR/PM-compliance/SLA/cost dashboard (`reporting`), SLA measurement against service contracts (`workorders/sla.py`), permit-to-work/incident reporting (`safety`), helpdesk self-service for any employee (`/report-issue/`, `/my-tickets/`), a team-based dispatch board (`/dispatch/`, `teams/services.py`), and a customer portal with local-account login (`/portal/`, `portal` app) scoped to each customer's own assets/tickets via `Asset.owner_customer` — separate from the internal Entra/site-scoping system entirely.
+Started as a **walking skeleton** (Traefik + PostgreSQL + Django with Entra ID login) to validate the deployment shape and auth flow before building on top of it. Now also includes: the Asset/Configuration data model with per-asset ownership tracking and a full history view (`assets`, `reporting/assets/<id>/history/`), Work Orders/incidents (`workorders`), RBAC roles + site-scoped data access (`core`, `assets/access.py` — site access is the sole visibility gate, independent of who owns an asset), teams and shifts (`teams`), PM scheduling with Celery-driven auto-ticketing (`maintenance`), stock/reservation tracking (`inventory`), an installable technician PWA (`/app/`, `pwa` app) and the API behind it (`mobile_api`), an MTTR/PM-compliance/SLA/cost dashboard (`reporting`), SLA measurement against service contracts (`workorders/sla.py`), permit-to-work/incident reporting (`safety`), helpdesk self-service for any employee (`/report-issue/`, `/my-tickets/`), a team-based dispatch board (`/dispatch/`, `teams/services.py`), and a customer portal with local-account login (`/portal/`, `portal` app) scoped to each customer's own assets/tickets via `Asset.owner_customer` — separate from the internal Entra/site-scoping system entirely.
 
 ## Stack
 
@@ -59,6 +59,7 @@ DJANGO_SECRET_KEY=dev POSTGRES_DB=cmms POSTGRES_USER=<you> POSTGRES_HOST=localho
    - `curl https://<CMMS_HOSTNAME>/healthz` → `{"status": "ok"}` (real cert, no `-k` needed)
    - `https://<CMMS_HOSTNAME>/admin/` — Django admin (create a superuser first: `docker compose exec backend python manage.py createsuperuser`)
    - `https://<CMMS_HOSTNAME>/` — redirects to Entra ID login if not authenticated
+   - `https://<CMMS_HOSTNAME>/app/` — the technician PWA; needs the real HTTPS cert (browsers require a secure context for service workers and camera access — `localhost` is exempt for local dev, but any other hostname over plain HTTP won't work)
 
 ## PM scheduling
 
