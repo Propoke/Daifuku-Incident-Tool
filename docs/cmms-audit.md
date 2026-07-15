@@ -1,0 +1,76 @@
+# CMMS Audit — Functionality Gaps vs. Real-World Systems
+
+Reviewed as: a CMMS implementation specialist, alongside a senior service technician/manager reading it the way they'd read any tool they're about to be handed on the floor. Benchmarked against what's genuinely standard in Fiix, UpKeep, Maintenance Connection, eMaint X4, IBM Maximo, and ServiceMax — not an exhaustive feature-parity chase, but "would a real shop notice this is missing on day one."
+
+## What's actually strong (say this first, because it's true)
+
+Before the gaps: the **configuration versioning system** (immutable `ConfigurationVersion`s, per-asset overrides without mutating the shared template, a work order permanently snapshotting what the asset was running when the work happened) is more rigorous than most commercial CMMS tools bother with — most competitors track "current config" as a mutable field and lose history the moment someone edits it. The **site-scoping model** (one access-control mechanism, ownership completely decoupled from visibility) is cleaner than what a lot of mid-tier CMMS products actually ship. And the **RBAC-to-the-model-permission-table** design means every feature added so far inherited real access control for free instead of being bolted on later. That's a genuinely good foundation to be building the rest of this on.
+
+The gaps below are real, but none of them are architecture problems — they're missing *modules*, and the existing patterns (immutable audit models, site-scoped querysets, service-function-plus-admin-plus-verification) are exactly the right shape to build them in.
+
+## Critical — a real shop would bounce off these in week one
+
+### 1. No file/photo attachments anywhere
+Zero `FileField`/`ImageField` in the entire codebase. A technician can't attach a photo of the failure, of the fix, of a torn label, of a nameplate for parts lookup — to a Work Order, an Asset, or a Permit. This is the single most universal feature across every commercial CMMS (Fiix, UpKeep, Maintenance Connection, all of them) and the top complaint a technician would raise in the first ten minutes of using this. It also blocks the PWA's most obvious real-world use: "scan the part, fix the machine, snap a photo of the repair, done."
+
+**Proposal**: an `Attachment` model (generic FK to any of Asset/WorkOrder/PermitToWork/IncidentReport, uploaded_by, file, caption, uploaded_at — immutable like the rest of the audit-relevant records) backed by object storage, not local disk (the infra plan already flagged MinIO for exactly this and it was never built). Surface an upload control on the WorkOrder admin and — more importantly — on the PWA's ticket detail screen, since that's where a phone camera actually gets used. This also finally gives the infra plan's MinIO recommendation a real reason to exist.
+
+### 2. No notifications — email or otherwise
+Grepped the whole repo: no `send_mail`, no `EmailMessage`, no notification model, nothing. A ticket gets assigned and the assignee finds out only by opening the app and checking. PM auto-generates a work order and nobody is told it exists until someone happens to look at the dispatch board. An SLA breaches and `sla_summary()` will show it on a dashboard someone has to remember to open. Every real CMMS treats "tell the right person something happened" as core, not optional.
+
+**Proposal**: minimum viable version is email — configure an SMTP backend (this needs to happen in the infra plan too, it was never provisioned), and hook `send_mail` into the points that already exist as natural triggers: `WorkOrder.save()` on assignment, `maintenance.services.generate_due_work_orders()` on PM-generated tickets, and a new daily Celery task (same pattern as PM generation) that emails SLA-breach and low-stock (`StockLevel.needs_reorder`) summaries to the relevant role. In-app notification (a simple `Notification` model + a bell icon) is the natural v2 once email proves the trigger points are right.
+
+### 3. No structured checklists — PM and permits are free text
+`PMSchedule.description` is one `TextField`. Real preventive maintenance is a list of discrete steps a technician checks off (torque to spec, inspect belt tension, verify E-stop) — not a paragraph they're supposed to remember. Same problem on `PermitToWork` (no LOTO step-by-step). Without this, "PM compliance" (which the dashboard already measures) only tells you the ticket got closed, not that the actual steps got done — which is exactly the gap an auditor or insurance inspector would flag.
+
+**Proposal**: `ChecklistTemplate` (reusable, attached to a `PMSchedule` or standalone) with ordered `ChecklistItem`s (text, requires a numeric/pass-fail response); `WorkOrderChecklistResponse` recording what the technician actually entered per item, per work order — append-only, same `ImmutableModel` pattern used everywhere else. Surface it in the PWA ticket detail screen as the natural place a technician fills it out.
+
+### 4. No meter/usage-based PM triggers
+Explicitly deferred when PM scheduling was built ("depends on equipment reporting meter readings, which nothing does yet") — but for material handling/conveyor equipment specifically, usage-based PM (every N running hours or N cycles) is often *more* common than calendar-based, because duty cycle varies a lot more than the calendar does. This was flagged as a known gap at the time, not a surprise now, but it's a real one.
+
+**Proposal**: an `AssetMeterReading` model (asset, meter type — hours/cycles, value, recorded_at, recorded_by) with manual entry as the v1 input method (a technician logs the odometer-equivalent reading, same as they'd log labor hours today); `PMSchedule` gains an optional `meter_interval` alongside the existing `interval_days`, and `generate_due_work_orders()` checks whichever trigger fires first. IoT-fed automatic readings are legitimately out of scope for now (no sensor integration exists or was asked for), but manual entry unblocks the whole feature cheaply.
+
+### 5. Nothing to scan on the *asset* itself
+The mobile app scans spare parts beautifully (barcode → stock → book onto a ticket). It has no equivalent for assets — `Asset.tag` is documented as "Asset tag / QR-code identifier" but nothing in the PWA actually scans it. A technician standing at a machine wants to scan its tag and land on "here's this asset's history, here's its open tickets, tap to report a new issue" — not search for it by name.
+
+**Proposal**: reuse the exact scan flow already built for parts — add an asset-lookup-by-tag endpoint to `mobile_api`, and a second scan mode in the PWA (the camera/`BarcodeDetector` code is already there, this is a routing change plus one new view, not new scanning infrastructure) landing on the asset history page (`reporting/services.py`'s `asset_history()` already exists and already renders everything needed).
+
+## Important — workable for a pilot, but a manager will ask about these within the first month
+
+- **No comment thread on a work order.** `description`/`symptoms`/`cause`/`resolution` are each single fields, not a running log — a technician can't leave a quick note for the next shift *on this specific ticket* (only on the shift as a whole, via `ShiftHandoverNote`, which is a different and coarser thing). Same `ImmutableModel`-log pattern as `WorkOrderStatusChange` would cover this cheaply: a `WorkOrderComment` model, append-only, shown chronologically alongside the status history already displayed.
+- **No vendor/supplier model.** `SparePart.supplier` is a plain text field — no contact info, no lead time, no "which supplier for this part is cheapest/fastest," and no foundation for a purchase-order workflow. A real `Vendor` model (name, contact, lead time) that `SparePart` references would also directly enable the next point.
+- **No purchase-order/procurement workflow.** `StockLevel.needs_reorder` is computed but nothing acts on it — no PO creation, no receiving workflow, no "this part is on order, ETA Tuesday" visibility. For a shop of any real size this is the actual answer to "the part isn't in stock," which today just fails a `consume_stock()` call with no next step offered.
+- **No technician skill/certification tracking.** Explicitly listed in the original feature draft, never built. Matters most because of `PermitToWork.lockout_tagout_applied` — right now *any* technician can be issued a LOTO permit regardless of whether they're actually qualified. A `Certification` model plus a check at permit-issuance time (even just a warning, not a hard block) closes a real safety gap, not just a nice-to-have.
+- **No labor cost rate.** Deliberately deferred when the reporting dashboard was built ("no rate data to guess at") — reasonable at the time, but a manager reading a cost report that only shows parts cost and raw hours (no dollarized labor) will notice immediately. A simple `hourly_rate` on `Team` or per-user is a small addition that unlocks real cost reporting.
+- **No approval/sign-off workflow.** `PermitToWork` has a status field but no approver — nothing distinguishes "issued" from "issued *and authorized by a supervisor*." For safety-relevant permits specifically, this is the kind of gap that shows up in an audit, not just a workflow annoyance.
+- **No backorder/"waiting on parts" state.** When `consume_stock()` hits insufficient stock it just raises an error — there's no way to flag "this job is blocked on a part" and have the work order reflect that (versus just sitting in `ON_HOLD` with no reason recorded).
+- **No global search.** Flagged as a requirement back in the original architecture audit, never built. Django admin's per-model search only helps once you already know which model you're looking in — a single search box across assets/tickets/parts by tag/barcode/title is a basic expectation once the catalog gets past a few hundred records.
+- **No warranty tracking on internally-owned assets.** `ServiceContract` covers customer-owned equipment; nothing tracks warranty expiry for assets *we* own. Cheap to add (`warranty_expiry` on `Asset`), easy to miss until someone needs it during a warranty dispute.
+
+## Lower priority — real gaps, but a pilot doesn't live or die on them
+
+- **OEE (availability × performance × quality)** — standard in manufacturing-flavored CMMS, but needs the meter-reading infrastructure above as a prerequisite anyway.
+- **No custom/ad-hoc report builder or CSV export** — the dashboard is fixed-metric; exporting to spreadsheet is a common ask once someone wants to slice the data their own way.
+- **No calendar export (iCal) for dispatch/PM schedules** — a small quality-of-life add once the dispatch board sees real use.
+- **No work-order relationships** (split into sub-tasks, duplicate-of, blocks/blocked-by) — matters more at higher ticket volume than a pilot will hit.
+- **No parts kitting** (pre-bundled sets of parts for a common job type) — an efficiency feature, not a functionality gap.
+- **No customer e-signature / sign-off in the portal** — relevant once field-service billing/proof-of-service actually matters to the business, not before.
+- **In-app push notifications on the PWA** — the same trigger points as the email proposal above, once that exists.
+
+## What I'm *not* re-flagging here
+
+Already documented as known, deliberate gaps elsewhere in this repo, not new findings: PWA offline queueing and real-device camera testing (`docs/mobile-app-backlog.md`), SLA auto-escalation/business-hours awareness (`workorders/sla.py`), customer-owned-asset scoping boundaries, and portal password-security hardening (`docs/cmms-feature-draft.md`). Repeating them here would just be padding the list.
+
+## Proposed order of attack
+
+If I were sequencing this the way the rest of this build has gone (small, verified, real-Postgres-tested slices — not a big-bang rewrite):
+
+1. **Attachments** (unblocks "prove the work happened" for both technicians and permits/incidents) — biggest single day-one complaint fixed.
+2. **Email notifications** on assignment + PM generation + SLA breach — needs an SMTP backend provisioned in the infra plan first, everything else reuses existing trigger points.
+3. **Asset QR scan-to-open in the PWA** — cheap, reuses existing scan infrastructure, high daily-use value.
+4. **Work order comments** — small, same pattern as `WorkOrderStatusChange`, closes a real daily-workflow gap.
+5. **Structured checklists** for PM/permits — bigger than the above but the highest-value remaining gap for compliance-minded shops.
+6. **Meter-based PM triggers** — needs the new `AssetMeterReading` model, then a straightforward extension of the existing generation service.
+7. Vendor model → PO workflow, technician certifications, labor rates, approval workflow, global search — roughly in that order, but genuinely could be resequenced based on which one you'd actually feel first.
+
+Want me to start on this list, and if so where — top to bottom, or is there a subset that matters more given how this is actually going to be used?
