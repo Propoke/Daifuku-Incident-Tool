@@ -5,6 +5,7 @@ from django.utils import timezone
 from assets.access import get_accessible_site_ids
 from maintenance.models import PMScheduleGeneration
 from workorders.models import WorkOrder, WorkOrderLaborEntry, WorkOrderPartUsage
+from workorders.sla import get_sla_status
 
 DEFAULT_PERIOD_DAYS = 90
 
@@ -112,6 +113,37 @@ def top_downtime_assets(user, period_days=DEFAULT_PERIOD_DAYS, limit=5):
     ]
 
 
+def sla_summary(user):
+    """SLA status across open work orders for customer-owned assets under
+    contract. Customer-owned assets have no Site (Asset.terminal is null),
+    so the same site-scoping filter used everywhere else naturally makes
+    this report visible only to Admin/OEM for now - consistent with the
+    customer-data-segregation boundary noted in assets/access.py, not a
+    separate rule invented here.
+    """
+    queryset = _site_scope(user, WorkOrder.objects.all(), "asset__terminal__site_id")
+    queryset = queryset.exclude(status=WorkOrder.Status.CLOSED).filter(asset__service_contract__isnull=False)
+    queryset = queryset.select_related("asset__service_contract").prefetch_related("status_changes")
+
+    counts = {"met": 0, "pending": 0, "breached": 0, "overdue": 0, "no_sla": 0}
+    for work_order in queryset:
+        status = get_sla_status(work_order)
+        if status is None:
+            counts["no_sla"] += 1
+            continue
+        # Worst-of response/resolution status represents this ticket.
+        statuses = [v["status"] for k, v in status.items() if k in ("response", "resolution")]
+        if "breached" in statuses:
+            counts["breached"] += 1
+        elif "overdue" in statuses:
+            counts["overdue"] += 1
+        elif "pending" in statuses:
+            counts["pending"] += 1
+        else:
+            counts["met"] += 1
+    return counts
+
+
 def dashboard_data(user, period_days=DEFAULT_PERIOD_DAYS):
     return {
         "period_days": period_days,
@@ -120,5 +152,6 @@ def dashboard_data(user, period_days=DEFAULT_PERIOD_DAYS):
         "pm_compliance_pct": pm_compliance(user, period_days),
         "parts_cost_total": parts_cost_total(user, period_days),
         "labor_hours_total": labor_hours_total(user, period_days),
+        "sla_summary": sla_summary(user),
         "top_downtime_assets": top_downtime_assets(user, period_days),
     }

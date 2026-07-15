@@ -45,6 +45,18 @@
     {% endfor %}
   </table>
 
+  <h2>SLA status (open, contracted customer tickets)</h2>
+  <table>
+    <tr><th>Met</th><th>Pending</th><th>Overdue</th><th>Breached</th><th>No SLA set</th></tr>
+    <tr>
+      <td>{{ sla_summary.met }}</td>
+      <td>{{ sla_summary.pending }}</td>
+      <td>{{ sla_summary.overdue }}</td>
+      <td>{{ sla_summary.breached }}</td>
+      <td>{{ sla_summary.no_sla }}</td>
+    </tr>
+  </table>
+
   <h2>Top assets by downtime</h2>
   <table>
     <tr><th>Asset</th><th>Downtime (h)</th><th>Incidents</th></tr>

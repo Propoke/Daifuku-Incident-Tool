@@ -9,6 +9,7 @@ from .models import (
     WorkOrderPartUsage,
     WorkOrderStatusChange,
 )
+from .sla import get_sla_status
 
 
 @admin.register(FailureCode)
@@ -66,5 +67,19 @@ class WorkOrderAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
     # actual_open_time/actual_close_time are intentionally editable (an admin
     # can correct them) - see the comment on those fields in models.py.
     # Auto-population only fills them in when left blank.
-    readonly_fields = ("configuration_snapshot", "created_at", "updated_at", "closed_at")
+    readonly_fields = ("configuration_snapshot", "created_at", "updated_at", "closed_at", "sla_status")
     inlines = [WorkOrderStatusChangeInline, WorkOrderLaborEntryInline, WorkOrderPartUsageInline]
+
+    @admin.display(description="SLA status")
+    def sla_status(self, obj):
+        status = get_sla_status(obj)
+        if status is None:
+            return "No SLA on this asset's contract"
+        parts = []
+        if "response" in status:
+            r = status["response"]
+            parts.append(f"Response: {r['status']} ({r['elapsed_hours']}h / {r['target_hours']}h target)")
+        if "resolution" in status:
+            r = status["resolution"]
+            parts.append(f"Resolution: {r['status']} ({r['elapsed_hours']}h / {r['target_hours']}h target)")
+        return " | ".join(parts)

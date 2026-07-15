@@ -80,6 +80,16 @@ class ServiceContract(models.Model):
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
     sla_description = models.TextField(blank=True)
+    # Machine-checkable targets, in addition to the free-text description
+    # above - what workorders.sla.get_sla_status() actually measures
+    # against. Either or both may be left blank if this contract has no
+    # hard SLA commitment.
+    sla_response_hours = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Target hours from ticket creation to work starting"
+    )
+    sla_resolution_hours = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Target hours from ticket creation to close"
+    )
 
     def __str__(self):
         return f"{self.customer.name} - {self.name}"
