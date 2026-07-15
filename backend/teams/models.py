@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from assets.models import ImmutableModel, Site
 
@@ -56,3 +57,26 @@ class ShiftHandoverNote(ImmutableModel):
 
     def __str__(self):
         return f"{self.team} handover ({self.created_at:%Y-%m-%d %H:%M})"
+
+
+class Certification(models.Model):
+    """A qualification a user holds - "LOTO Authorized", "Confined Space
+    Entry", "Forklift", etc. name isn't a fixed enum (shops vary), but
+    safety.admin.PermitToWorkAdmin checks for an exact-name match
+    ("LOTO Authorized") when issuing a lockout/tagout permit, as a
+    warning, not a hard block - right now any technician can be issued a
+    LOTO permit regardless of whether they're actually qualified; this at
+    least surfaces the gap to whoever's issuing it."""
+
+    holder = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="certifications")
+    name = models.CharField(max_length=200, help_text='e.g. "LOTO Authorized", "Confined Space Entry", "Forklift"')
+    issued_date = models.DateField()
+    expiry_date = models.DateField(null=True, blank=True, help_text="Leave blank if this certification doesn't expire")
+    notes = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.holder} - {self.name}"
+
+    @property
+    def is_current(self):
+        return self.expiry_date is None or self.expiry_date >= timezone.localdate()

@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from assets.access import SiteScopedAdminMixin
 
-from .models import Shift, ShiftHandoverNote, Team
+from .models import Certification, Shift, ShiftHandoverNote, Team
 
 
 @admin.register(Team)
@@ -31,3 +31,15 @@ class ShiftHandoverNoteAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
         if obj is not None:
             return [f.name for f in self.model._meta.fields]
         return []
+
+
+@admin.register(Certification)
+class CertificationAdmin(admin.ModelAdmin):
+    list_display = ("holder", "name", "issued_date", "expiry_date", "is_current")
+    list_filter = ("name",)
+    search_fields = ("holder__username", "name")
+    autocomplete_fields = ("holder",)
+
+    @admin.display(boolean=True)
+    def is_current(self, obj):
+        return obj.is_current
