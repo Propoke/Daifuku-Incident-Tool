@@ -58,6 +58,11 @@ class WorkOrder(models.Model):
         blank=True,
         related_name="assigned_work_orders",
     )
+    # Can be set with or without assigned_to - a ticket can sit with a
+    # team's queue before/instead of being handed to one individual.
+    assigned_team = models.ForeignKey(
+        "teams.Team", on_delete=models.SET_NULL, null=True, blank=True, related_name="work_orders"
+    )
 
     # Snapshotted from Asset.current_configuration_assignment at creation
     # time and never changed afterward, so "what was this asset running

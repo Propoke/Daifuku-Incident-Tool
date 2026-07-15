@@ -56,6 +56,7 @@ class WorkOrderAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
         "work_order_type",
         "priority",
         "status",
+        "assigned_team",
         "assigned_to",
         "actual_open_time",
         "actual_close_time",

@@ -34,6 +34,7 @@ def generate_due_work_orders(as_of=None):
                 title=schedule.title,
                 description=schedule.description,
                 due_date=schedule.next_due_date,
+                assigned_team=schedule.assigned_team,
             )
             PMScheduleGeneration.objects.create(
                 pm_schedule=schedule,

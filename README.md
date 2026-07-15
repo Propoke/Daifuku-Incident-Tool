@@ -6,7 +6,7 @@ Custom, self-hosted CMMS for maintaining material handling/automation equipment,
 - [`docs/infrastructure-setup-plan.md`](docs/infrastructure-setup-plan.md) — tech stack, deployment topology, networking, auth, and backup strategy.
 - [`docs/mobile-app-backlog.md`](docs/mobile-app-backlog.md) — not built yet: plan for a technician phone app (barcode scan → stock/location lookup, book a part onto a ticket, work tickets from the phone), and the API it'll consume.
 
-Started as a **walking skeleton** (Traefik + PostgreSQL + Django with Entra ID login) to validate the deployment shape and auth flow before building on top of it. Now also includes: the Asset/Configuration data model (`assets`), Work Orders/incidents (`workorders`), RBAC roles (`core`), PM scheduling with Celery-driven auto-ticketing (`maintenance`), stock/reservation tracking (`inventory`), and a token-authenticated API for the future mobile app (`mobile_api`).
+Started as a **walking skeleton** (Traefik + PostgreSQL + Django with Entra ID login) to validate the deployment shape and auth flow before building on top of it. Now also includes: the Asset/Configuration data model (`assets`), Work Orders/incidents (`workorders`), RBAC roles + site-scoped data access (`core`, `assets/access.py`), teams and shifts (`teams`), PM scheduling with Celery-driven auto-ticketing (`maintenance`), stock/reservation tracking (`inventory`), and a token-authenticated API for the future mobile app (`mobile_api`).
 
 ## Stack
 

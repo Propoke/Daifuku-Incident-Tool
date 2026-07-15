@@ -17,6 +17,14 @@ class PMSchedule(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, help_text="Checklist / procedure notes for the generated work order")
 
+    # Copied onto WorkOrder.assigned_team by the generation service each
+    # time a work order is created from this schedule - the "shift-aware
+    # scheduling" the feature draft asked for, without needing the PM
+    # engine itself to know anything about shift timing.
+    assigned_team = models.ForeignKey(
+        "teams.Team", on_delete=models.SET_NULL, null=True, blank=True, related_name="pm_schedules"
+    )
+
     interval_days = models.PositiveIntegerField(help_text="Repeat every N days")
     start_date = models.DateField(help_text="Anchor date the recurrence is calculated from")
 
