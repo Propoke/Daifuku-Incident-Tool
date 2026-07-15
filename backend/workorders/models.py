@@ -82,6 +82,12 @@ class WorkOrder(models.Model):
     )
 
     due_date = models.DateField(null=True, blank=True)
+    # The planned appointment/visit slot - distinct from due_date (a
+    # deadline) and actual_open_time/actual_close_time (what really
+    # happened). This is what the dispatch board (teams.services) schedules
+    # against.
+    scheduled_start = models.DateTimeField(null=True, blank=True)
+    scheduled_end = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     closed_at = models.DateTimeField(null=True, blank=True)

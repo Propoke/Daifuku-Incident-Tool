@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Dispatch board — {{ date }}</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; margin-bottom: 2rem; width: 100%; max-width: 900px; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.8rem; text-align: left; }
+    h2 { margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>Dispatch board — {{ date }}</h1>
+  <form method="get">
+    <label>Date: <input type="date" name="date" value="{{ date|date:'Y-m-d' }}"></label>
+    <button type="submit">Go</button>
+  </form>
+
+  {% for team, work_orders in by_team.items %}
+  <h2>{{ team }}</h2>
+  <table>
+    <tr><th>Time</th><th>Asset</th><th>Title</th><th>Assigned to</th><th>Status</th></tr>
+    {% for wo in work_orders %}
+    <tr>
+      <td>{{ wo.scheduled_start|time:"H:i" }}&ndash;{{ wo.scheduled_end|time:"H:i" }}</td>
+      <td>{{ wo.asset.tag }}</td>
+      <td>{{ wo.title }}</td>
+      <td>{{ wo.assigned_to|default:"-" }}</td>
+      <td>{{ wo.status }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5">Nothing scheduled.</td></tr>
+    {% endfor %}
+  </table>
+  {% empty %}
+  <p>No teams at your accessible site(s).</p>
+  {% endfor %}
+
+  <h2>Unassigned</h2>
+  <table>
+    <tr><th>Time</th><th>Asset</th><th>Title</th><th>Status</th></tr>
+    {% for wo in unassigned %}
+    <tr>
+      <td>{{ wo.scheduled_start|time:"H:i" }}&ndash;{{ wo.scheduled_end|time:"H:i" }}</td>
+      <td>{{ wo.asset.tag }}</td>
+      <td>{{ wo.title }}</td>
+      <td>{{ wo.status }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4">Nothing unassigned today.</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

@@ -59,6 +59,7 @@ class WorkOrderAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
         "status",
         "assigned_team",
         "assigned_to",
+        "scheduled_start",
         "actual_open_time",
         "actual_close_time",
     )
