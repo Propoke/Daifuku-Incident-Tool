@@ -97,6 +97,10 @@ class SparePart(models.Model):
     is a property of this record, not of the Item it fulfills."""
 
     sku = models.CharField(max_length=100, unique=True)
+    # Separate from sku: the printed/scanned symbology value, which may
+    # differ from the human-readable SKU. Nullable since not every part has
+    # a physical barcode label yet; scanning lookups fall back to sku.
+    barcode = models.CharField(max_length=100, unique=True, null=True, blank=True)
     description = models.CharField(max_length=300, blank=True)
     items = models.ManyToManyField(Item, related_name="spare_parts")
     supplier = models.CharField(max_length=200, blank=True)

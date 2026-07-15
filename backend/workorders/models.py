@@ -154,6 +154,12 @@ class WorkOrderPartUsage(models.Model):
     spare_part = models.ForeignKey(SparePart, on_delete=models.PROTECT, related_name="work_order_usages")
     quantity = models.PositiveIntegerField(default=1)
     date = models.DateField()
+    # Nullable: historical/manually-entered usage may not specify exactly
+    # where the part came from, but the barcode-scan flow
+    # (inventory.services.consume_stock) always sets this.
+    stock_location = models.ForeignKey(
+        "inventory.StockLocation", on_delete=models.PROTECT, null=True, blank=True, related_name="part_usages"
+    )
 
     def __str__(self):
         return f"{self.work_order} - {self.spare_part} x{self.quantity}"

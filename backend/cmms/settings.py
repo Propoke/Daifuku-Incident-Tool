@@ -19,12 +19,15 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework.authtoken",
     "mozilla_django_oidc",
     "django_celery_beat",
     "core",
     "assets",
     "workorders",
     "maintenance",
+    "inventory",
+    "mobile_api",
 ]
 
 MIDDLEWARE = [
@@ -117,6 +120,14 @@ OIDC_OP_JWKS_ENDPOINT = (
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
+        # Interim mechanism for the mobile API (see docs/mobile-app-backlog.md)
+        # so a client can be built/tested now. Production mobile auth should
+        # move to Entra ID's mobile-native OAuth2/PKCE flow rather than
+        # static tokens - not implemented yet.
+        "rest_framework.authentication.TokenAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
     ],
 }
 
