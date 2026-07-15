@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "mozilla_django_oidc",
     "core",
+    "assets",
 ]
 
 MIDDLEWARE = [
