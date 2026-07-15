@@ -29,25 +29,32 @@ DJANGO_SECRET_KEY=dev POSTGRES_DB=cmms POSTGRES_USER=<you> POSTGRES_HOST=localho
 
 ## Running the full stack (Traefik + TLS)
 
-1. Copy the env template and fill in real values:
+1. Create a scoped Cloudflare API token for the DNS-01 challenge:
+   - Cloudflare dashboard → **My Profile → API Tokens → Create Token → Custom token**
+   - Permissions: `Zone` / `DNS` / `Edit`
+   - Zone Resources: scope to the specific zone that owns `CMMS_HOSTNAME` (not "All zones") — least privilege, this token can only edit DNS TXT records for that one zone
+   - Do **not** use the Cloudflare global API key — it's account-wide and far broader than Traefik needs
+   - Copy the generated token; you won't be able to view it again after leaving the page
+
+2. Copy the env template and fill in real values:
    ```
    cp .env.example .env
    ```
    - `DJANGO_SECRET_KEY`: generate one, e.g. `python -c "import secrets; print(secrets.token_urlsafe(50))"`
    - `POSTGRES_PASSWORD`: any value for local/staging, a real secret for production
-   - `CMMS_HOSTNAME`: a real hostname in a Cloudflare-managed DNS zone (can resolve internally-only — it doesn't need to be internet-reachable, DNS-01 doesn't require that)
+   - `CMMS_HOSTNAME`: a real hostname in the Cloudflare zone you scoped the token to above (can resolve internally-only — it doesn't need to be internet-reachable, DNS-01 doesn't require that)
    - `ACME_EMAIL`: a real address Let's Encrypt can send expiry/problem notices to
-   - `CF_DNS_API_TOKEN`: a Cloudflare API token scoped to `Zone:DNS:Edit` for that zone specifically — not the global API key
+   - `CF_DNS_API_TOKEN`: the token from step 1
    - `ACME_CA_SERVER`: leave as the production Let's Encrypt endpoint, or point at `https://acme-staging-v02.api.letsencrypt.org/directory` while testing to avoid production rate limits
    - `OIDC_TENANT_ID` / `OIDC_RP_CLIENT_ID` / `OIDC_RP_CLIENT_SECRET`: from an Entra ID app registration (redirect URI `https://<CMMS_HOSTNAME>/oidc/callback/`)
 
-2. Build and start the stack:
+3. Build and start the stack:
    ```
    docker compose up -d --build
    ```
    Traefik requests and renews the cert automatically via Cloudflare's DNS API on first boot — no manual cert handling. `traefik/acme/acme.json` (gitignored — it holds the account key and issued certs) is created with restrictive permissions on first run.
 
-3. Verify:
+4. Verify:
    - `curl https://<CMMS_HOSTNAME>/healthz` → `{"status": "ok"}` (real cert, no `-k` needed)
    - `https://<CMMS_HOSTNAME>/admin/` — Django admin (create a superuser first: `docker compose exec backend python manage.py createsuperuser`)
    - `https://<CMMS_HOSTNAME>/` — redirects to Entra ID login if not authenticated
