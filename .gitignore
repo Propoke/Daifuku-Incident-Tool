@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+backend/staticfiles/
+*.sqlite3
+
+certs/*.crt
+certs/*.key
