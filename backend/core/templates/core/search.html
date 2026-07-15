@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Search - CMMS</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; margin-bottom: 2rem; width: 100%; max-width: 900px; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.8rem; text-align: left; }
+    input[type="text"] { padding: 0.4rem; width: 300px; }
+  </style>
+</head>
+<body>
+  <h1>Search</h1>
+  <p><a href="{% url 'home' %}">Home</a></p>
+  <form method="get" action="{% url 'global-search' %}">
+    <input type="text" name="q" value="{{ query }}" placeholder="Asset tag, ticket title, part SKU/barcode&hellip;" autofocus>
+    <button type="submit">Search</button>
+  </form>
+
+  {% if query %}
+    <h2>Assets</h2>
+    <table>
+      <tr><th>Tag</th><th>Name</th><th>Site</th></tr>
+      {% for asset in results.assets %}
+      <tr>
+        <td><a href="{% url 'asset-history' asset.id %}">{{ asset.tag }}</a></td>
+        <td>{{ asset.name }}</td>
+        <td>{{ asset.terminal.site }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3">No matching assets.</td></tr>
+      {% endfor %}
+    </table>
+
+    <h2>Work orders</h2>
+    <table>
+      <tr><th>Title</th><th>Asset</th><th>Status</th></tr>
+      {% for wo in results.work_orders %}
+      <tr>
+        <td><a href="/admin/workorders/workorder/{{ wo.id }}/change/">{{ wo.title }}</a></td>
+        <td>{{ wo.asset.tag }}</td>
+        <td>{{ wo.status }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3">No matching work orders.</td></tr>
+      {% endfor %}
+    </table>
+
+    <h2>Spare parts</h2>
+    <table>
+      <tr><th>SKU</th><th>Barcode</th><th>Description</th></tr>
+      {% for part in results.spare_parts %}
+      <tr>
+        <td><a href="/admin/assets/sparepart/{{ part.id }}/change/">{{ part.sku }}</a></td>
+        <td>{{ part.barcode|default:"-" }}</td>
+        <td>{{ part.description }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3">No matching spare parts.</td></tr>
+      {% endfor %}
+    </table>
+  {% endif %}
+</body>
+</html>

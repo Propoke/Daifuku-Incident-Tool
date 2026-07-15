@@ -5,6 +5,7 @@ from django.shortcuts import redirect, render
 from workorders.models import WorkOrder
 
 from .forms import IssueReportForm
+from .search import global_search
 
 
 def healthz(request):
@@ -35,3 +36,10 @@ def report_issue(request):
 def my_tickets(request):
     tickets = WorkOrder.objects.filter(reported_by=request.user).order_by("-created_at")
     return render(request, "core/my_tickets.html", {"tickets": tickets})
+
+
+@login_required
+def search(request):
+    query = request.GET.get("q", "")
+    results = global_search(request.user, query)
+    return render(request, "core/search.html", {"query": query, "results": results})
