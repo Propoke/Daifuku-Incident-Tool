@@ -5,11 +5,11 @@ Custom, self-hosted CMMS for maintaining material handling/automation equipment,
 - [`docs/cmms-feature-draft.md`](docs/cmms-feature-draft.md) — feature list, high-level description, and the architectural risk audit.
 - [`docs/infrastructure-setup-plan.md`](docs/infrastructure-setup-plan.md) — tech stack, deployment topology, networking, auth, and backup strategy.
 
-This repo currently contains the **walking skeleton**: Traefik + PostgreSQL + an empty Django project with Entra ID (OIDC) login wired up. It exists to validate the deployment shape and auth flow before the real Asset/Configuration data model is built on top of it.
+Started as a **walking skeleton** (Traefik + PostgreSQL + Django with Entra ID login) to validate the deployment shape and auth flow before building on top of it. Now also includes: the Asset/Configuration data model (`assets`), Work Orders/incidents (`workorders`), RBAC roles (`core`), and PM scheduling with Celery-driven auto-ticketing (`maintenance`).
 
 ## Stack
 
-Django + Django REST Framework, PostgreSQL, Traefik (TLS termination via Let's Encrypt DNS-01 through Cloudflare), Entra ID via `mozilla-django-oidc`. Full rationale in the infra plan doc above, including why a public CA cert on a split-horizon hostname was chosen over a self-signed or internal CA.
+Django + Django REST Framework, PostgreSQL, Traefik (TLS termination via Let's Encrypt DNS-01 through Cloudflare), Entra ID via `mozilla-django-oidc`, Celery + Redis + `django-celery-beat` for scheduled jobs (currently: PM auto-ticketing). Full infra rationale in the infra plan doc above, including why a public CA cert on a split-horizon hostname was chosen over a self-signed or internal CA.
 
 ## Backend-only local iteration (no TLS/Traefik needed)
 
@@ -58,6 +58,10 @@ DJANGO_SECRET_KEY=dev POSTGRES_DB=cmms POSTGRES_USER=<you> POSTGRES_HOST=localho
    - `curl https://<CMMS_HOSTNAME>/healthz` → `{"status": "ok"}` (real cert, no `-k` needed)
    - `https://<CMMS_HOSTNAME>/admin/` — Django admin (create a superuser first: `docker compose exec backend python manage.py createsuperuser`)
    - `https://<CMMS_HOSTNAME>/` — redirects to Entra ID login if not authenticated
+
+## PM scheduling
+
+`celery-worker` and `celery-beat` (see `docker-compose.yml`) turn due `PMSchedule`s into `WorkOrder`s automatically, on the cadence set in `/admin/django_celery_beat/periodictask/` (daily by default — editable there, no redeploy needed). To run it manually instead of waiting for the schedule: `python manage.py generate_due_pm_work_orders` (works with just Postgres, no Celery/Redis required for this manual path).
 
 ## Deploying
 

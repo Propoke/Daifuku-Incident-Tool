@@ -20,9 +20,11 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "mozilla_django_oidc",
+    "django_celery_beat",
     "core",
     "assets",
     "workorders",
+    "maintenance",
 ]
 
 MIDDLEWARE = [
@@ -117,3 +119,13 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ],
 }
+
+# --- Celery / scheduled jobs (PM auto-ticketing) ---
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_TIMEZONE = TIME_ZONE
+# Schedule lives in the DB (django-celery-beat), editable via /admin/ rather
+# than a hardcoded beat_schedule dict, matching the admin-editable pattern
+# used elsewhere in this project.
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"

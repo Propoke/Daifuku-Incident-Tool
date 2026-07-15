@@ -37,12 +37,39 @@ services:
     env_file: .env
     depends_on:
       - postgres
+      - redis
     labels:
       - traefik.enable=true
       - traefik.http.routers.cmms.rule=Host(`${CMMS_HOSTNAME}`)
       - traefik.http.routers.cmms.entrypoints=websecure
       - traefik.http.routers.cmms.tls.certresolver=cloudflare
       - traefik.http.services.cmms.loadbalancer.server.port=8000
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  # Migrations only run in `backend`'s startup command. If these start
+  # before that finishes on a fresh deploy, they'll crash and retry - fine
+  # under `restart: unless-stopped`, but worth knowing before assuming
+  # something's actually broken.
+  celery-worker:
+    build: ./backend
+    command: celery -A cmms worker -l info
+    env_file: .env
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  celery-beat:
+    build: ./backend
+    command: celery -A cmms beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file: .env
+    depends_on:
+      - postgres
+      - redis
     restart: unless-stopped
 
 volumes:
