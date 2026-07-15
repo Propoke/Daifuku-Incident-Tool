@@ -46,6 +46,21 @@ class PermitToWork(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     closed_at = models.DateTimeField(null=True, blank=True)
 
+    # Distinguishes "issued" from "issued *and* authorized by a
+    # supervisor" - status alone couldn't express that before. Never
+    # editable as a plain form field (see safety.admin.PermitToWorkAdmin's
+    # readonly_fields + the dedicated "Approve" action, gated on the
+    # can_approve_permittowork permission below) - approval is a
+    # deliberate action a supervisor takes, not a field anyone with
+    # change_permittowork can just fill in.
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_permits"
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        permissions = [("can_approve_permittowork", "Can approve permit to work")]
+
     def __str__(self):
         return f"PTW: {self.title} - {self.asset.tag}"
 

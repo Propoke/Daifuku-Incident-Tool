@@ -18,10 +18,41 @@ LOTO_CERTIFICATION_NAME = "LOTO Authorized"
 @admin.register(PermitToWork)
 class PermitToWorkAdmin(SetsAttachmentUploaderMixin, SiteScopedAdminMixin, admin.ModelAdmin):
     site_lookup = "asset__terminal__site_id"
-    list_display = ("title", "asset", "status", "lockout_tagout_applied", "issued_to", "valid_from", "valid_until")
+    list_display = (
+        "title",
+        "asset",
+        "status",
+        "lockout_tagout_applied",
+        "issued_to",
+        "approved_by",
+        "valid_from",
+        "valid_until",
+    )
     list_filter = ("status", "lockout_tagout_applied")
     search_fields = ("title", "asset__tag")
+    # approved_by/approved_at are never a plain form field - see the
+    # "Approve selected permits" action below, gated on
+    # can_approve_permittowork, which is the only way to set them.
+    readonly_fields = ("approved_by", "approved_at")
+    actions = ["approve_permits"]
     inlines = [AttachmentInline]
+
+    @admin.action(description="Approve selected permits")
+    def approve_permits(self, request, queryset):
+        if not request.user.has_perm("safety.can_approve_permittowork"):
+            self.message_user(
+                request, "You don't have permission to approve permits to work.", level="ERROR"
+            )
+            return
+        already_approved = queryset.filter(approved_by__isnull=False).count()
+        to_approve = queryset.filter(approved_by__isnull=True)
+        approved_count = to_approve.update(approved_by=request.user, approved_at=timezone.now())
+        if approved_count:
+            self.message_user(request, f"Approved {approved_count} permit(s).")
+        if already_approved:
+            self.message_user(
+                request, f"{already_approved} permit(s) were already approved - left unchanged.", level="WARNING"
+            )
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
