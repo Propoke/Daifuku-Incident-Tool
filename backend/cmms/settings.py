@@ -92,6 +92,12 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Attachment uploads. Local disk for now - move to object storage (MinIO,
+# already flagged in the infra plan) via django-storages once real volume
+# shows up; not wired up yet since there's no MinIO instance to point at.
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- Authentication ---

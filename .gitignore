@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .env
 backend/staticfiles/
+backend/media/
 *.sqlite3
 
 traefik/acme/acme.json

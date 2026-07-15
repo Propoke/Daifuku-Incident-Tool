@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from assets.access import SiteScopedAdminMixin
+from core.admin import AttachmentInline, SetsAttachmentUploaderMixin
 
 from .models import (
     FailureCode,
@@ -49,7 +50,7 @@ class WorkOrderPartUsageInline(admin.TabularInline):
 
 
 @admin.register(WorkOrder)
-class WorkOrderAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
+class WorkOrderAdmin(SetsAttachmentUploaderMixin, SiteScopedAdminMixin, admin.ModelAdmin):
     site_lookup = "asset__terminal__site_id"
     list_display = (
         "__str__",
@@ -69,7 +70,7 @@ class WorkOrderAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
     # can correct them) - see the comment on those fields in models.py.
     # Auto-population only fills them in when left blank.
     readonly_fields = ("configuration_snapshot", "created_at", "updated_at", "closed_at", "sla_status")
-    inlines = [WorkOrderStatusChangeInline, WorkOrderLaborEntryInline, WorkOrderPartUsageInline]
+    inlines = [WorkOrderStatusChangeInline, WorkOrderLaborEntryInline, WorkOrderPartUsageInline, AttachmentInline]
 
     @admin.display(description="SLA status")
     def sla_status(self, obj):

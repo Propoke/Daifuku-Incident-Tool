@@ -65,7 +65,7 @@ Already documented as known, deliberate gaps elsewhere in this repo, not new fin
 
 If I were sequencing this the way the rest of this build has gone (small, verified, real-Postgres-tested slices — not a big-bang rewrite):
 
-1. **Attachments** (unblocks "prove the work happened" for both technicians and permits/incidents) — biggest single day-one complaint fixed.
+1. ~~**Attachments**~~ — DONE. `core.Attachment` (generic FK, local-disk `FileField`, RBAC via a dedicated migration: add/view for Technician/Lead Technician, view-only for Management/Asset Manager/Spare Parts Manager/OEM, delete restricted to Admin/Incident Manager) is wired into Asset, WorkOrder, PermitToWork, and IncidentReport admin via a shared `AttachmentInline`. `uploaded_by` is auto-set through a `SetsAttachmentUploaderMixin` on the parent ModelAdmins (`save_formset()` — not `save_new()` on the inline, which Django never calls on an `InlineModelAdmin`). Verified against real Postgres: upload through the WorkOrder admin form, file lands on disk, `uploaded_by` set to the logged-in technician, delete correctly 403s/hides the delete checkbox for a plain Technician. PWA ticket-detail upload UI and object storage (MinIO) are still open — this closed the admin-side gap only.
 2. **Email notifications** on assignment + PM generation + SLA breach — needs an SMTP backend provisioned in the infra plan first, everything else reuses existing trigger points.
 3. **Asset QR scan-to-open in the PWA** — cheap, reuses existing scan infrastructure, high daily-use value.
 4. **Work order comments** — small, same pattern as `WorkOrderStatusChange`, closes a real daily-workflow gap.

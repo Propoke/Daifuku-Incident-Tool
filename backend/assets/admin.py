@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
+from core.admin import AttachmentInline, SetsAttachmentUploaderMixin
+
 from .access import SiteScopedAdminMixin
 from .models import (
     Asset,
@@ -126,7 +128,7 @@ class AssetConfigurationAssignmentInline(SuperuserOnlyEditMixin, admin.TabularIn
 
 
 @admin.register(Asset)
-class AssetAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
+class AssetAdmin(SetsAttachmentUploaderMixin, SiteScopedAdminMixin, admin.ModelAdmin):
     # terminal is required for every asset regardless of ownership, so
     # site-scoping applies uniformly - see assets/access.py.
     site_lookup = "terminal__site_id"
@@ -134,7 +136,7 @@ class AssetAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
     list_filter = ("owner_customer", "status", "criticality")
     search_fields = ("tag", "name", "serial_number")
     readonly_fields = ("history_link",)
-    inlines = [AssetConfigurationAssignmentInline]
+    inlines = [AssetConfigurationAssignmentInline, AttachmentInline]
 
     @admin.display(description="History")
     def history_link(self, obj):
