@@ -5,5 +5,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("oidc/", include("mozilla_django_oidc.urls")),
     path("api/mobile/", include("mobile_api.urls")),
+    path("reports/", include("reporting.urls")),
     path("", include("core.urls")),
 ]

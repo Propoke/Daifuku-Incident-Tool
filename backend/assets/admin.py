@@ -59,7 +59,7 @@ class ItemAdmin(admin.ModelAdmin):
 
 @admin.register(SparePart)
 class SparePartAdmin(admin.ModelAdmin):
-    list_display = ("sku", "barcode", "description", "supplier", "is_active")
+    list_display = ("sku", "barcode", "description", "supplier", "unit_cost", "is_active")
     filter_horizontal = ("items",)
     search_fields = ("sku", "barcode", "description")
 

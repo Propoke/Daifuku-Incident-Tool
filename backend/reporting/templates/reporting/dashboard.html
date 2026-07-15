@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CMMS Reports</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; margin-bottom: 2rem; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.8rem; text-align: left; }
+    .stat { display: inline-block; margin: 0 2rem 1rem 0; }
+    .stat .value { font-size: 2rem; font-weight: bold; display: block; }
+    .stat .label { color: #555; }
+  </style>
+</head>
+<body>
+  <h1>Reports</h1>
+  <p>Last {{ period_days }} days. Scoped to your assigned sites (or all sites, if you're Admin/OEM).</p>
+
+  <div>
+    <div class="stat">
+      <span class="value">{% if mttr_hours %}{{ mttr_hours }}h{% else %}&mdash;{% endif %}</span>
+      <span class="label">MTTR (corrective)</span>
+    </div>
+    <div class="stat">
+      <span class="value">{% if pm_compliance_pct %}{{ pm_compliance_pct }}%{% else %}&mdash;{% endif %}</span>
+      <span class="label">PM compliance</span>
+    </div>
+    <div class="stat">
+      <span class="value">{{ labor_hours_total }}h</span>
+      <span class="label">Labor hours logged</span>
+    </div>
+    <div class="stat">
+      <span class="value">${{ parts_cost_total }}</span>
+      <span class="label">Parts cost</span>
+    </div>
+  </div>
+
+  <h2>Open backlog</h2>
+  <table>
+    <tr><th>Status</th><th>Count</th></tr>
+    {% for row in backlog %}
+    <tr><td>{{ row.status }}</td><td>{{ row.count }}</td></tr>
+    {% empty %}
+    <tr><td colspan="2">No open work orders.</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Top assets by downtime</h2>
+  <table>
+    <tr><th>Asset</th><th>Downtime (h)</th><th>Incidents</th></tr>
+    {% for row in top_downtime_assets %}
+    <tr><td>{{ row.asset_tag }} - {{ row.asset_name }}</td><td>{{ row.downtime_hours }}</td><td>{{ row.incident_count }}</td></tr>
+    {% empty %}
+    <tr><td colspan="3">No corrective work orders closed in this period.</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
