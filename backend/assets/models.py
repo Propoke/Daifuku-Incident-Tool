@@ -128,6 +128,24 @@ class Item(models.Model):
         return self.name
 
 
+class Vendor(models.Model):
+    """A real supplier record - name, contact, lead time - instead of the
+    free-text SparePart.supplier field that preceded it. Foundation for
+    the purchase-order workflow (inventory.PurchaseOrder): a PO needs
+    somewhere to actually order from, with a lead time to estimate an ETA
+    against."""
+
+    name = models.CharField(max_length=200)
+    contact_name = models.CharField(max_length=200, blank=True)
+    contact_email = models.EmailField(blank=True)
+    contact_phone = models.CharField(max_length=50, blank=True)
+    lead_time_days = models.PositiveIntegerField(null=True, blank=True, help_text="Typical order-to-delivery time")
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+
 class SparePart(models.Model):
     """The stocked, orderable SKU that fulfills one or more Items. Stock level
     is a property of this record, not of the Item it fulfills."""
@@ -139,7 +157,13 @@ class SparePart(models.Model):
     barcode = models.CharField(max_length=100, unique=True, null=True, blank=True)
     description = models.CharField(max_length=300, blank=True)
     items = models.ManyToManyField(Item, related_name="spare_parts")
+    # Free-text, kept for parts that haven't been assigned a real Vendor
+    # record yet - vendor below is the structured replacement (contact
+    # info, lead time) new purchasing should use.
     supplier = models.CharField(max_length=200, blank=True)
+    vendor = models.ForeignKey(
+        Vendor, on_delete=models.SET_NULL, null=True, blank=True, related_name="spare_parts"
+    )
     is_active = models.BooleanField(default=True)
     unit_cost = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True, help_text="Used for parts cost reporting"

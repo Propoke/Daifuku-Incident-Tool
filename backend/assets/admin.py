@@ -20,6 +20,7 @@ from .models import (
     Site,
     SparePart,
     Terminal,
+    Vendor,
 )
 
 
@@ -70,11 +71,19 @@ class ItemAdmin(admin.ModelAdmin):
     list_filter = ("is_active",)
 
 
+@admin.register(Vendor)
+class VendorAdmin(admin.ModelAdmin):
+    list_display = ("name", "contact_name", "contact_email", "contact_phone", "lead_time_days", "is_active")
+    search_fields = ("name", "contact_name", "contact_email")
+    list_filter = ("is_active",)
+
+
 @admin.register(SparePart)
 class SparePartAdmin(admin.ModelAdmin):
-    list_display = ("sku", "barcode", "description", "supplier", "unit_cost", "is_active")
+    list_display = ("sku", "barcode", "description", "vendor", "unit_cost", "is_active")
     filter_horizontal = ("items",)
     search_fields = ("sku", "barcode", "description")
+    list_filter = ("vendor", "is_active")
 
 
 class SuperuserOnlyEditMixin:
