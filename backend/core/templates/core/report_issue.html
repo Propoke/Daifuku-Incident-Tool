@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Report an issue</title>
+</head>
+<body>
+  <h1>Report an issue</h1>
+  <p>Anyone can file a report - you don't need any special role.</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Submit</button>
+  </form>
+  <p><a href="{% url 'my-tickets' %}">My reported tickets</a> | <a href="{% url 'home' %}">Home</a></p>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>My reported tickets</title>
+  <style>
+    table { border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.8rem; text-align: left; }
+  </style>
+</head>
+<body>
+  <h1>My reported tickets</h1>
+  <p><a href="{% url 'report-issue' %}">Report a new issue</a> | <a href="{% url 'home' %}">Home</a></p>
+  <table>
+    <tr><th>Title</th><th>Asset</th><th>Status</th><th>Priority</th><th>Reported</th></tr>
+    {% for ticket in tickets %}
+    <tr>
+      <td>{{ ticket.title }}</td>
+      <td>{{ ticket.asset.tag }}</td>
+      <td>{{ ticket.status }}</td>
+      <td>{{ ticket.priority }}</td>
+      <td>{{ ticket.created_at }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5">You haven't reported any issues yet.</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
