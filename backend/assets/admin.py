@@ -142,7 +142,7 @@ class AssetAdmin(SetsAttachmentUploaderMixin, SiteScopedAdminMixin, admin.ModelA
     # terminal is required for every asset regardless of ownership, so
     # site-scoping applies uniformly - see assets/access.py.
     site_lookup = "terminal__site_id"
-    list_display = ("tag", "name", "owner_customer", "terminal", "status", "criticality")
+    list_display = ("tag", "name", "owner_customer", "terminal", "status", "criticality", "warranty_expiry", "under_warranty")
     list_filter = ("owner_customer", "status", "criticality")
     search_fields = ("tag", "name", "serial_number")
     readonly_fields = ("history_link",)
@@ -154,6 +154,10 @@ class AssetAdmin(SetsAttachmentUploaderMixin, SiteScopedAdminMixin, admin.ModelA
             return "-"
         url = reverse("asset-history", args=[obj.pk])
         return format_html('<a href="{}">Tickets, configuration, permits, incidents, and changes</a>', url)
+
+    @admin.display(boolean=True, description="Under warranty")
+    def under_warranty(self, obj):
+        return obj.is_under_warranty
 
 
 @admin.register(AssetConfigurationAssignment)

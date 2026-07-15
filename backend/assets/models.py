@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 
 class ImmutableModel(models.Model):
@@ -268,6 +269,12 @@ class Asset(models.Model):
     model = models.CharField(max_length=200, blank=True)
     serial_number = models.CharField(max_length=200, blank=True)
     install_date = models.DateField(null=True, blank=True)
+    # ServiceContract (above) covers customer-owned equipment we service
+    # under contract; this covers the other direction - manufacturer
+    # warranty on equipment *we* own. Nothing tracked this before, which
+    # is exactly the kind of thing that's easy to miss until someone
+    # needs it during a warranty dispute.
+    warranty_expiry = models.DateField(null=True, blank=True)
     firmware_version = models.CharField(max_length=100, blank=True)
     software_version = models.CharField(max_length=100, blank=True)
     criticality = models.CharField(max_length=10, choices=Criticality.choices, default=Criticality.MEDIUM)
@@ -275,6 +282,10 @@ class Asset(models.Model):
 
     def __str__(self):
         return f"{self.tag} - {self.name}"
+
+    @property
+    def is_under_warranty(self):
+        return self.warranty_expiry is not None and self.warranty_expiry >= timezone.localdate()
 
     @property
     def is_customer_owned(self):
@@ -332,8 +343,6 @@ class AssetMeterReading(ImmutableModel):
 
     def save(self, *args, **kwargs):
         if self.recorded_at is None:
-            from django.utils import timezone
-
             self.recorded_at = timezone.now()
         super().save(*args, **kwargs)
 
