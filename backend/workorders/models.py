@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 
 from assets.models import Asset, AssetConfigurationAssignment, ImmutableModel, SparePart
+from core.notifications import notify_work_order_assigned
 
 
 class FailureCode(models.Model):
@@ -107,8 +108,18 @@ class WorkOrder(models.Model):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         previous_status = None
+        previous_assigned_to_id = None
+        previous_assigned_team_id = None
         if not is_new:
-            previous_status = WorkOrder.objects.filter(pk=self.pk).values_list("status", flat=True).first()
+            previous = (
+                WorkOrder.objects.filter(pk=self.pk)
+                .values("status", "assigned_to_id", "assigned_team_id")
+                .first()
+            )
+            if previous:
+                previous_status = previous["status"]
+                previous_assigned_to_id = previous["assigned_to_id"]
+                previous_assigned_team_id = previous["assigned_team_id"]
 
         if is_new and self.configuration_snapshot_id is None:
             self.configuration_snapshot = self.asset.current_configuration_assignment
@@ -130,6 +141,12 @@ class WorkOrder(models.Model):
                 from_status=previous_status or "",
                 to_status=self.status,
             )
+
+        assignment_changed = is_new or (
+            previous_assigned_to_id != self.assigned_to_id or previous_assigned_team_id != self.assigned_team_id
+        )
+        if assignment_changed and (self.assigned_to_id or self.assigned_team_id):
+            notify_work_order_assigned(self)
 
 
 class WorkOrderStatusChange(ImmutableModel):

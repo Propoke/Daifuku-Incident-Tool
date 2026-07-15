@@ -142,6 +142,24 @@ REST_FRAMEWORK = {
     ],
 }
 
+# --- Email notifications (work order assignment, PM tickets, SLA/stock digest) ---
+# Defaults to Django's console backend so this works with zero setup in
+# dev/local iteration - point DJANGO_EMAIL_BACKEND at
+# django.core.mail.backends.smtp.EmailBackend once a real relay is
+# provisioned (this was flagged as never-provisioned in the CMMS audit).
+EMAIL_BACKEND = os.environ.get("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "true").lower() == "true"
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "cmms@localhost")
+
+# Used to build links back into the app from notification emails. Falls
+# back to CMMS_HOSTNAME (already used for the Traefik routing rule) so this
+# doesn't need its own env var in the common case.
+CMMS_BASE_URL = os.environ.get("CMMS_BASE_URL", f"https://{os.environ.get('CMMS_HOSTNAME', 'localhost')}")
+
 # --- Celery / scheduled jobs (PM auto-ticketing) ---
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CELERY_BROKER_URL = REDIS_URL
