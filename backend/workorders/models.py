@@ -234,6 +234,12 @@ class WorkOrderLaborEntry(models.Model):
     technician = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="labor_entries")
     date = models.DateField()
     hours = models.DecimalField(max_digits=5, decimal_places=2)
+    # Overrides work_order.assigned_team.hourly_rate for this entry -
+    # contractor labor, or a team with no rate set. Nullable/blank means
+    # "use the team's rate" (see reporting.services.labor_cost_total),
+    # same nullable-defers-to-a-fallback convention as
+    # SparePart.unit_cost for parts_cost_total.
+    hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     notes = models.TextField(blank=True)
 
     def __str__(self):

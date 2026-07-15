@@ -16,6 +16,12 @@ class Team(models.Model):
     lead = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="led_teams"
     )
+    # Used for labor cost reporting (reporting.services.labor_cost_total) -
+    # the default rate applied to WorkOrderLaborEntry.hours for entries
+    # against a work order assigned to this team. A per-entry
+    # WorkOrderLaborEntry.hourly_rate overrides this for contractor labor
+    # or when no team rate applies.
+    hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
 
     class Meta:
         unique_together = ("site", "code")

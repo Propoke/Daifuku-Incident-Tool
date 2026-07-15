@@ -89,6 +89,22 @@ def labor_hours_total(user, period_days=DEFAULT_PERIOD_DAYS):
     return queryset.aggregate(total=Sum("hours"))["total"] or 0
 
 
+def labor_cost_total(user, period_days=DEFAULT_PERIOD_DAYS):
+    """Dollarized labor cost - deliberately deferred when this dashboard
+    was first built ("no rate data to guess at"). Each entry's effective
+    rate is its own hourly_rate if set, else its work order's assigned
+    team's hourly_rate, else 0 - entries with neither still count toward
+    labor_hours_total above, just not toward cost."""
+    queryset = _site_scope(user, WorkOrderLaborEntry.objects.all(), "work_order__asset__terminal__site_id")
+    queryset = queryset.filter(date__gte=_since(period_days).date())
+    line_cost = ExpressionWrapper(
+        F("hours") * Coalesce(F("hourly_rate"), F("work_order__assigned_team__hourly_rate"), 0),
+        output_field=DecimalField(max_digits=12, decimal_places=2),
+    )
+    result = queryset.annotate(line_cost=line_cost).aggregate(total=Sum("line_cost"))
+    return result["total"] or 0
+
+
 def top_downtime_assets(user, period_days=DEFAULT_PERIOD_DAYS, limit=5):
     """Assets with the most corrective downtime (actual_open_time ->
     actual_close_time) in the period."""
@@ -153,6 +169,7 @@ def dashboard_data(user, period_days=DEFAULT_PERIOD_DAYS):
         "pm_compliance_pct": pm_compliance(user, period_days),
         "parts_cost_total": parts_cost_total(user, period_days),
         "labor_hours_total": labor_hours_total(user, period_days),
+        "labor_cost_total": labor_cost_total(user, period_days),
         "sla_summary": sla_summary(user),
         "top_downtime_assets": top_downtime_assets(user, period_days),
     }
