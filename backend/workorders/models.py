@@ -40,6 +40,9 @@ class WorkOrder(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    symptoms = models.TextField(blank=True, help_text="What was observed")
+    cause = models.TextField(blank=True, help_text="Root cause, once known")
+    resolution = models.TextField(blank=True, help_text="How it was resolved")
 
     reported_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -78,6 +81,15 @@ class WorkOrder(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     closed_at = models.DateTimeField(null=True, blank=True)
 
+    # Editable by an admin (unlike created_at/closed_at above, which are
+    # system-managed record timestamps). These represent when the incident
+    # actually started/was resolved in reality, which can differ from when
+    # the record was created/closed in the system - e.g. an incident
+    # reported by phone and logged later. Auto-populated with "now" if left
+    # blank on save; an explicitly-set value is never overwritten.
+    actual_open_time = models.DateTimeField(null=True, blank=True)
+    actual_close_time = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
         return f"WO-{self.pk}: {self.title}"
 
@@ -90,8 +102,14 @@ class WorkOrder(models.Model):
         if is_new and self.configuration_snapshot_id is None:
             self.configuration_snapshot = self.asset.current_configuration_assignment
 
-        if self.status == self.Status.CLOSED and self.closed_at is None:
-            self.closed_at = timezone.now()
+        if self.actual_open_time is None:
+            self.actual_open_time = timezone.now()
+
+        if self.status == self.Status.CLOSED:
+            if self.closed_at is None:
+                self.closed_at = timezone.now()
+            if self.actual_close_time is None:
+                self.actual_close_time = timezone.now()
 
         super().save(*args, **kwargs)
 

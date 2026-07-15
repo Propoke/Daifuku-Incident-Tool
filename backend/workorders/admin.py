@@ -47,8 +47,20 @@ class WorkOrderPartUsageInline(admin.TabularInline):
 
 @admin.register(WorkOrder)
 class WorkOrderAdmin(admin.ModelAdmin):
-    list_display = ("__str__", "asset", "work_order_type", "priority", "status", "assigned_to", "due_date")
+    list_display = (
+        "__str__",
+        "asset",
+        "work_order_type",
+        "priority",
+        "status",
+        "assigned_to",
+        "actual_open_time",
+        "actual_close_time",
+    )
     list_filter = ("status", "priority", "work_order_type")
-    search_fields = ("title", "description", "asset__tag")
+    search_fields = ("title", "description", "symptoms", "cause", "resolution", "asset__tag")
+    # actual_open_time/actual_close_time are intentionally editable (an admin
+    # can correct them) - see the comment on those fields in models.py.
+    # Auto-population only fills them in when left blank.
     readonly_fields = ("configuration_snapshot", "created_at", "updated_at", "closed_at")
     inlines = [WorkOrderStatusChangeInline, WorkOrderLaborEntryInline, WorkOrderPartUsageInline]
