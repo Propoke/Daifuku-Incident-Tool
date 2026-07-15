@@ -9,6 +9,11 @@ urlpatterns = [
     path("workorders/<int:pk>/", views.WorkOrderDetailView.as_view(), name="mobile-workorder-detail"),
     path("workorders/<int:pk>/status/", views.WorkOrderStatusUpdateView.as_view(), name="mobile-workorder-status"),
     path(
+        "workorders/<int:pk>/comments/",
+        views.WorkOrderCommentListCreateView.as_view(),
+        name="mobile-workorder-comments",
+    ),
+    path(
         "workorders/<int:pk>/consume-part/", views.ConsumePartView.as_view(), name="mobile-workorder-consume-part"
     ),
 ]

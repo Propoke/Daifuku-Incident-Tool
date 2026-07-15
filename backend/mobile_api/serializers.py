@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from assets.models import Asset
 from inventory.models import StockLevel
-from workorders.models import WorkOrder, WorkOrderPartUsage
+from workorders.models import WorkOrder, WorkOrderComment, WorkOrderPartUsage
 
 
 class StockLevelSerializer(serializers.ModelSerializer):
@@ -79,3 +79,12 @@ class WorkOrderPartUsageSerializer(serializers.ModelSerializer):
 
 class WorkOrderStatusUpdateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=WorkOrder.Status.choices)
+
+
+class WorkOrderCommentSerializer(serializers.ModelSerializer):
+    author_username = serializers.CharField(source="author.username", read_only=True, default=None)
+
+    class Meta:
+        model = WorkOrderComment
+        fields = ["id", "body", "author_username", "created_at"]
+        read_only_fields = ["id", "author_username", "created_at"]

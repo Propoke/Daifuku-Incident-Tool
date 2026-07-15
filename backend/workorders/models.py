@@ -166,6 +166,30 @@ class WorkOrderStatusChange(ImmutableModel):
         return f"{self.work_order} : {self.from_status or '(new)'} -> {self.to_status}"
 
 
+class WorkOrderComment(ImmutableModel):
+    """A running, chronological note thread on one specific work order -
+    what a technician actually reaches for to leave a quick note for the
+    next shift on *this ticket*. Distinct from teams.ShiftHandoverNote
+    (a whole-shift handover, not tied to any one ticket) and from the
+    single description/symptoms/cause/resolution fields on WorkOrder
+    (a summary, not a thread). Append-only like WorkOrderStatusChange -
+    editing/deleting a comment after the fact isn't how a shared work log
+    should behave."""
+
+    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="comments")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Comment on {self.work_order} by {self.author}"
+
+
 class WorkOrderLaborEntry(models.Model):
     work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="labor_entries")
     technician = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="labor_entries")

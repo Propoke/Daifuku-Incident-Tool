@@ -96,6 +96,13 @@ function renderTicketDetail(t) {
       <h3>Book a part onto this ticket</h3>
       <button id="scan-for-ticket">Scan barcode</button>
     </div>
+    <div class="card">
+      <h3>Comments</h3>
+      <div id="comments-list" class="muted">Loading&hellip;</div>
+      <textarea id="comment-body" placeholder="Leave a note for the next shift on this ticket&hellip;"></textarea>
+      <button id="comment-submit">Post comment</button>
+      <p id="comment-msg"></p>
+    </div>
   `;
   document.getElementById("back-to-tickets").addEventListener("click", (e) => {
     e.preventDefault();
@@ -116,6 +123,45 @@ function renderTicketDetail(t) {
     }
   });
   document.getElementById("scan-for-ticket").addEventListener("click", () => showScan(t));
+  document.getElementById("comment-submit").addEventListener("click", () => postComment(t));
+  loadComments(t);
+}
+
+async function loadComments(ticket) {
+  const listEl = document.getElementById("comments-list");
+  try {
+    const comments = await api(`/workorders/${ticket.id}/comments/`);
+    listEl.innerHTML = comments.length
+      ? comments
+          .map(
+            (c) => `
+      <p><strong>${escapeHtml(c.author_username || "unknown")}</strong>
+        <span class="muted">${escapeHtml(new Date(c.created_at).toLocaleString())}</span><br>
+        ${escapeHtml(c.body)}</p>`
+          )
+          .join("")
+      : `<p class="muted">No comments yet.</p>`;
+  } catch (e) {
+    listEl.innerHTML = `<p class="error">${escapeHtml(e.message)}</p>`;
+  }
+}
+
+async function postComment(ticket) {
+  const bodyEl = document.getElementById("comment-body");
+  const msg = document.getElementById("comment-msg");
+  const body = bodyEl.value.trim();
+  if (!body) return;
+  try {
+    await api(`/workorders/${ticket.id}/comments/`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    });
+    bodyEl.value = "";
+    msg.innerHTML = `<span class="success">Posted.</span>`;
+    loadComments(ticket);
+  } catch (e) {
+    msg.innerHTML = `<span class="error">${escapeHtml(e.message)}</span>`;
+  }
 }
 
 async function showScan(ticket, mode = "part") {

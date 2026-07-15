@@ -16,6 +16,7 @@ from .serializers import (
     AssetLookupSerializer,
     ConsumePartRequestSerializer,
     SparePartLookupSerializer,
+    WorkOrderCommentSerializer,
     WorkOrderDetailSerializer,
     WorkOrderListSerializer,
     WorkOrderPartUsageSerializer,
@@ -129,6 +130,32 @@ class WorkOrderStatusUpdateView(APIView):
         work_order.status = serializer.validated_data["status"]
         work_order.save()
         return Response(WorkOrderDetailSerializer(work_order).data)
+
+
+class WorkOrderCommentListCreateView(generics.ListCreateAPIView):
+    """GET/POST /api/mobile/workorders/<id>/comments/ - the phone
+    equivalent of the WorkOrderCommentInline in the admin: view the
+    running note thread on this specific ticket, and leave a quick note
+    for the next shift without having to open the desktop admin."""
+
+    serializer_class = WorkOrderCommentSerializer
+
+    def get_permissions(self):
+        self.required_permission = (
+            "workorders.add_workordercomment"
+            if self.request.method == "POST"
+            else "workorders.view_workordercomment"
+        )
+        return [HasModelPermission()]
+
+    def get_work_order(self):
+        return get_object_or_404(_site_scoped_work_order_queryset(self.request.user), pk=self.kwargs["pk"])
+
+    def get_queryset(self):
+        return self.get_work_order().comments.select_related("author")
+
+    def perform_create(self, serializer):
+        serializer.save(work_order=self.get_work_order(), author=self.request.user)
 
 
 class ConsumePartView(APIView):
