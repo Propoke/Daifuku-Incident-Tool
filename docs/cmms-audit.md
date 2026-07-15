@@ -48,13 +48,7 @@ The mobile app scans spare parts beautifully (barcode → stock → book onto a 
 
 ## Lower priority — real gaps, but a pilot doesn't live or die on them
 
-- **OEE (availability × performance × quality)** — standard in manufacturing-flavored CMMS, but needs the meter-reading infrastructure above as a prerequisite anyway.
-- **No custom/ad-hoc report builder or CSV export** — the dashboard is fixed-metric; exporting to spreadsheet is a common ask once someone wants to slice the data their own way.
-- **No calendar export (iCal) for dispatch/PM schedules** — a small quality-of-life add once the dispatch board sees real use.
-- **No work-order relationships** (split into sub-tasks, duplicate-of, blocks/blocked-by) — matters more at higher ticket volume than a pilot will hit.
-- **No parts kitting** (pre-bundled sets of parts for a common job type) — an efficiency feature, not a functionality gap.
-- **No customer e-signature / sign-off in the portal** — relevant once field-service billing/proof-of-service actually matters to the business, not before.
-- **In-app push notifications on the PWA** — the same trigger points as the email proposal above, once that exists.
+Moved to `docs/TODO.md` (with checkboxes) so it's tracked as an actual backlog instead of buried in this narrative doc. Every item there was originally identified here: OEE, a custom/ad-hoc report builder with CSV export, iCal export for dispatch/PM schedules, work-order relationships (sub-tasks/duplicate-of/blocks), parts kitting, customer e-signature in the portal, and in-app push notifications on the PWA.
 
 ## What I'm *not* re-flagging here
 
