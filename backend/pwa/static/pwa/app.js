@@ -118,16 +118,29 @@ function renderTicketDetail(t) {
   document.getElementById("scan-for-ticket").addEventListener("click", () => showScan(t));
 }
 
-async function showScan(ticket) {
+async function showScan(ticket, mode = "part") {
   setActiveTab(ticket ? null : "scan");
+  // A ticket-scoped scan is always for booking a part onto that ticket -
+  // the asset-scan mode only makes sense from the standalone Scan tab,
+  // where there's no ticket in play to book a part against.
+  const showModeToggle = !ticket;
   app.innerHTML = `
     ${ticket ? `<a href="#" class="back-link" id="back-to-ticket">&larr; Back to ticket</a>` : ""}
+    ${
+      showModeToggle
+        ? `
     <div class="card">
-      <h3>Scan a part barcode</h3>
+      <button id="mode-part" class="${mode === "part" ? "" : "secondary"}">Scan a part</button>
+      <button id="mode-asset" class="${mode === "asset" ? "" : "secondary"}">Scan an asset</button>
+    </div>`
+        : ""
+    }
+    <div class="card">
+      <h3>${mode === "asset" ? "Scan an asset tag" : "Scan a part barcode"}</h3>
       <video id="scan-video" autoplay playsinline muted></video>
       <p id="scan-status" class="muted">Starting camera&hellip;</p>
       <p class="muted">Camera scanning not working? Enter the code by hand:</p>
-      <input id="manual-code" placeholder="Barcode or SKU">
+      <input id="manual-code" placeholder="${mode === "asset" ? "Asset tag" : "Barcode or SKU"}">
       <button id="manual-submit">Look up</button>
     </div>
     <div id="scan-result"></div>
@@ -138,17 +151,29 @@ async function showScan(ticket) {
       renderTicketDetail(ticket);
     });
   }
+  if (showModeToggle) {
+    document.getElementById("mode-part").addEventListener("click", () => showScan(null, "part"));
+    document.getElementById("mode-asset").addEventListener("click", () => showScan(null, "asset"));
+  }
   document.getElementById("manual-submit").addEventListener("click", () => {
     const code = document.getElementById("manual-code").value.trim();
-    if (code) lookupPart(code, ticket);
+    if (code) handleScannedCode(code, ticket, mode);
   });
 
-  startCameraScan(ticket);
+  startCameraScan(ticket, mode);
+}
+
+function handleScannedCode(code, ticket, mode) {
+  if (mode === "asset") {
+    lookupAsset(code);
+  } else {
+    lookupPart(code, ticket);
+  }
 }
 
 let activeStream = null;
 
-async function startCameraScan(ticket) {
+async function startCameraScan(ticket, mode) {
   const statusEl = document.getElementById("scan-status");
   if (!("BarcodeDetector" in window)) {
     statusEl.textContent = "Camera scanning isn't supported in this browser - use manual entry below.";
@@ -173,7 +198,7 @@ async function startCameraScan(ticket) {
       if (codes.length) {
         stopped = true;
         stopCameraScan();
-        lookupPart(codes[0].rawValue, ticket);
+        handleScannedCode(codes[0].rawValue, ticket, mode);
         return;
       }
     } catch (e) {
@@ -188,6 +213,21 @@ function stopCameraScan() {
   if (activeStream) {
     activeStream.getTracks().forEach((tr) => tr.stop());
     activeStream = null;
+  }
+}
+
+async function lookupAsset(code) {
+  const resultEl = document.getElementById("scan-result");
+  resultEl.innerHTML = `<p class="muted">Looking up ${escapeHtml(code)}&hellip;</p>`;
+  try {
+    const asset = await api(`/assets/lookup/?code=${encodeURIComponent(code)}`);
+    // Hands off to the existing site-scoped asset history page (Django
+    // template, not part of the SPA) rather than building a second
+    // asset-detail screen - it already renders tickets, configuration
+    // history, permits/incidents, and the change log.
+    window.location.href = `/reports/assets/${asset.id}/history/`;
+  } catch (e) {
+    resultEl.innerHTML = `<p class="error">${escapeHtml(e.message)}</p>`;
   }
 }
 

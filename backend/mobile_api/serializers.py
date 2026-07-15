@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from assets.models import Asset
 from inventory.models import StockLevel
 from workorders.models import WorkOrder, WorkOrderPartUsage
 
@@ -30,6 +31,15 @@ class SparePartLookupSerializer(serializers.Serializer):
     barcode = serializers.CharField(allow_null=True)
     description = serializers.CharField()
     stock_levels = StockLevelSerializer(many=True)
+
+
+class AssetLookupSerializer(serializers.ModelSerializer):
+    """Just enough for the PWA to redirect to the asset's (existing,
+    site-scoped) history page - not a full asset representation."""
+
+    class Meta:
+        model = Asset
+        fields = ["id", "tag", "name"]
 
 
 class WorkOrderListSerializer(serializers.ModelSerializer):

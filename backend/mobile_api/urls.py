@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path("spareparts/lookup/", views.SparePartLookupView.as_view(), name="mobile-sparepart-lookup"),
+    path("assets/lookup/", views.AssetLookupView.as_view(), name="mobile-asset-lookup"),
     path("workorders/mine/", views.MyWorkOrdersView.as_view(), name="mobile-workorders-mine"),
     path("workorders/<int:pk>/", views.WorkOrderDetailView.as_view(), name="mobile-workorder-detail"),
     path("workorders/<int:pk>/status/", views.WorkOrderStatusUpdateView.as_view(), name="mobile-workorder-status"),

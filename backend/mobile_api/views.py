@@ -6,12 +6,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from assets.access import scope_queryset_to_sites
+from assets.models import Asset
 from inventory.models import StockLevel, StockLocation
 from inventory.services import consume_stock, find_spare_part_by_code
 from workorders.models import WorkOrder
 
 from .permissions import HasModelPermission
 from .serializers import (
+    AssetLookupSerializer,
     ConsumePartRequestSerializer,
     SparePartLookupSerializer,
     WorkOrderDetailSerializer,
@@ -63,6 +65,33 @@ class SparePartLookupView(APIView):
 
         result = SparePartLookupResult(spare_part, stock_levels)
         return Response(SparePartLookupSerializer(result).data)
+
+
+class AssetLookupView(APIView):
+    """GET /api/mobile/assets/lookup/?code=<scanned-tag>
+
+    Resolves a scanned asset tag/QR code to the asset id so the PWA can
+    hand off to the existing site-scoped asset history page
+    (reporting.views.asset_history_view) instead of building a second
+    asset-detail screen. Site-scoped like everything else here - a
+    technician can't use this to discover an asset outside their access.
+    """
+
+    required_permission = "assets.view_asset"
+    permission_classes = [HasModelPermission]
+
+    def get(self, request):
+        code = request.query_params.get("code")
+        if not code:
+            raise ValidationError({"code": "Query parameter 'code' is required."})
+        queryset = scope_queryset_to_sites(request.user, Asset.objects.all(), "terminal__site_id")
+        asset = queryset.filter(tag=code).first()
+        if asset is None:
+            return Response(
+                {"detail": "No asset matches that tag, or it isn't at one of your sites."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(AssetLookupSerializer(asset).data)
 
 
 class MyWorkOrdersView(generics.ListAPIView):
