@@ -23,7 +23,9 @@ async function api(path, options = {}) {
   }
   if (!resp.ok) {
     const message = (data && (data.detail || JSON.stringify(data))) || `Request failed (${resp.status})`;
-    throw new Error(message);
+    const err = new Error(message);
+    err.data = data;
+    throw err;
   }
   return data;
 }
@@ -75,7 +77,7 @@ async function showTicketDetail(id) {
 }
 
 function renderTicketDetail(t) {
-  const statuses = ["OPEN", "IN_PROGRESS", "ON_HOLD", "COMPLETED", "CLOSED"];
+  const statuses = ["OPEN", "IN_PROGRESS", "WAITING_ON_PARTS", "ON_HOLD", "COMPLETED", "CLOSED"];
   app.innerHTML = `
     <a href="#" class="back-link" id="back-to-tickets">&larr; My tickets</a>
     <div class="card">
@@ -410,7 +412,27 @@ function renderPartResult(part, ticket) {
         });
         msg.innerHTML = `<span class="success">Booked ${quantity}x ${escapeHtml(part.sku)} onto this ticket.</span>`;
       } catch (e) {
-        msg.innerHTML = `<span class="error">${escapeHtml(e.message)}</span>`;
+        if (e.data && e.data.can_flag_waiting_on_parts) {
+          msg.innerHTML = `<span class="error">${escapeHtml(e.message)}</span><br>`;
+          const flagBtn = document.createElement("button");
+          flagBtn.textContent = "Mark ticket as waiting on parts";
+          flagBtn.className = "secondary";
+          flagBtn.addEventListener("click", async () => {
+            try {
+              await api(`/workorders/${ticket.id}/status/`, {
+                method: "POST",
+                body: JSON.stringify({ status: "WAITING_ON_PARTS" }),
+              });
+              ticket.status = "WAITING_ON_PARTS";
+              msg.innerHTML = `<span class="success">Ticket marked as waiting on parts.</span>`;
+            } catch (e2) {
+              msg.innerHTML = `<span class="error">${escapeHtml(e2.message)}</span>`;
+            }
+          });
+          msg.appendChild(flagBtn);
+        } else {
+          msg.innerHTML = `<span class="error">${escapeHtml(e.message)}</span>`;
+        }
       }
     });
   }

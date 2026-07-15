@@ -32,6 +32,15 @@ class WorkOrder(models.Model):
     class Status(models.TextChoices):
         OPEN = "OPEN", "Open"
         IN_PROGRESS = "IN_PROGRESS", "In progress"
+        # Distinct from ON_HOLD: this specifically means "blocked on a
+        # part," not paused for some other reason - inventory.services.
+        # consume_stock() has no way to record *why* a job stalled when it
+        # hits insufficient stock, just that the individual scan failed.
+        # Setting this status (through the same status-update paths every
+        # other transition already uses - admin, mobile_api, the PWA) is
+        # the flag; what's missing goes in a WorkOrderComment, the same
+        # place any other note on a ticket goes.
+        WAITING_ON_PARTS = "WAITING_ON_PARTS", "Waiting on parts"
         ON_HOLD = "ON_HOLD", "On hold"
         COMPLETED = "COMPLETED", "Completed"
         CLOSED = "CLOSED", "Closed"

@@ -265,6 +265,18 @@ class ConsumePartView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         except DjangoValidationError as exc:
-            raise ValidationError({"detail": exc.messages}) from exc
+            # consume_stock()'s only ValidationError case is insufficient
+            # stock - surface a next step (audit gap: this used to just
+            # fail with nothing else offered) instead of a dead end. The
+            # PWA can use this to offer "mark this ticket as waiting on
+            # parts" rather than the technician just walking away stuck.
+            # A plain Response, not `raise ValidationError(...)` - DRF's
+            # ValidationError coerces every value to an error-message
+            # string (True becomes "True", an int becomes "1"), which
+            # would silently corrupt can_flag_waiting_on_parts/work_order_id.
+            return Response(
+                {"detail": exc.messages, "can_flag_waiting_on_parts": True, "work_order_id": work_order.id},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response(WorkOrderPartUsageSerializer(usage).data, status=status.HTTP_201_CREATED)
