@@ -7,7 +7,11 @@ class CMMSOIDCBackend(OIDCAuthenticationBackend):
     Entra security-group -> CMMS role mapping isn't wired up yet: that
     needs the real group object IDs from the app registration, which don't
     exist until Entra is configured for this app. Extend _sync_profile()
-    to read the `groups` claim once those IDs are known.
+    to add the user to the matching Django Group ("Admin", "Incident
+    Manager", "Management", "Technician", "Lead Technician", "Spare Parts
+    Manager" - see core/migrations/0001_create_roles.py) once those IDs
+    are known. Until then, role assignment is manual: an existing admin
+    adds the user to a group via /admin/auth/user/.
     """
 
     def get_username(self, claims):
@@ -26,4 +30,10 @@ class CMMSOIDCBackend(OIDCAuthenticationBackend):
         user.first_name = claims.get("given_name", "")
         user.last_name = claims.get("family_name", "")
         user.email = claims.get("email", "")
+        # Django admin is the only UI right now (see infra plan), so every
+        # authenticated internal user needs is_staff to reach it at all -
+        # the RBAC groups then gate what they actually see/can do inside.
+        # Revisit once a dedicated frontend exists: is_staff should then be
+        # reserved for users who genuinely need the admin panel.
+        user.is_staff = True
         user.save()
