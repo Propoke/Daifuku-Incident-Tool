@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "mobile_api",
     "reporting",
     "safety",
+    "portal",
 ]
 
 MIDDLEWARE = [

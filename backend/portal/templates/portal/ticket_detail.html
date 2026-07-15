@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ ticket.title }} — Customer Portal</title>
+</head>
+<body>
+  <h1>{{ ticket.title }}</h1>
+  <p><a href="{% url 'portal-tickets' %}">&larr; All my tickets</a></p>
+  <p>
+    Asset: {{ ticket.asset.tag }} — {{ ticket.asset.name }}<br>
+    Status: {{ ticket.status }}<br>
+    Priority: {{ ticket.priority }}<br>
+    Reported: {{ ticket.created_at }}
+  </p>
+  <h3>Description</h3>
+  <p>{{ ticket.description|linebreaks }}</p>
+  {% if ticket.resolution %}
+  <h3>Resolution</h3>
+  <p>{{ ticket.resolution|linebreaks }}</p>
+  {% endif %}
+</body>
+</html>

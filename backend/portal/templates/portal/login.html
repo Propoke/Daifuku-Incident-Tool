@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Customer Portal — Log in</title>
+</head>
+<body>
+  <h1>Customer Portal</h1>
+  {% if form.errors %}<p style="color:red">{{ form.non_field_errors }}</p>{% endif %}
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Log in</button>
+  </form>
+</body>
+</html>

@@ -65,6 +65,22 @@ class Customer(models.Model):
         return self.name
 
 
+class CustomerContact(models.Model):
+    """Marks a User as a customer portal account (see the portal app) -
+    presence of this record is what portal views check, not is_staff
+    (which stays False for these accounts, so they can never reach
+    /admin/ even by guessing the URL). Local username/password auth
+    (Django's ModelBackend, already an active AUTHENTICATION_BACKENDS
+    entry) - separate from the Entra OIDC flow used by internal staff."""
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="customer_contact")
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="contacts")
+    phone = models.CharField(max_length=50, blank=True)
+
+    def __str__(self):
+        return f"{self.user.get_username()} ({self.customer.name})"
+
+
 class CustomerSite(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name="sites")
     name = models.CharField(max_length=200)

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Report an issue — Customer Portal</title>
+</head>
+<body>
+  <h1>Report an issue</h1>
+  <p><a href="{% url 'portal-home' %}">Home</a></p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Submit</button>
+  </form>
+</body>
+</html>

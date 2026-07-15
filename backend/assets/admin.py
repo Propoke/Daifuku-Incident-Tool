@@ -10,6 +10,7 @@ from .models import (
     ConfigurationVersion,
     ConfigurationVersionItem,
     Customer,
+    CustomerContact,
     CustomerSite,
     Item,
     ServiceContract,
@@ -38,6 +39,13 @@ class TerminalAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
 class CustomerAdmin(admin.ModelAdmin):
     list_display = ("name", "code")
     search_fields = ("name", "code")
+
+
+@admin.register(CustomerContact)
+class CustomerContactAdmin(admin.ModelAdmin):
+    list_display = ("user", "customer", "phone")
+    list_filter = ("customer",)
+    autocomplete_fields = ("user",)
 
 
 @admin.register(CustomerSite)

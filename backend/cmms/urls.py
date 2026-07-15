@@ -7,5 +7,6 @@ urlpatterns = [
     path("api/mobile/", include("mobile_api.urls")),
     path("reports/", include("reporting.urls")),
     path("dispatch/", include("teams.urls")),
+    path("portal/", include("portal.urls")),
     path("", include("core.urls")),
 ]
