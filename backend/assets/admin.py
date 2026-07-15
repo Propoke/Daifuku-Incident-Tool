@@ -60,19 +60,39 @@ class SparePartAdmin(admin.ModelAdmin):
     search_fields = ("sku", "description")
 
 
+class SuperuserOnlyEditMixin:
+    """The configuration assigned to an asset - templates, versions, their
+    items, and the assignment linking a version to an asset - can only be
+    edited by an actual Django superuser, never by group/permission grants
+    alone. Enforced here in code so it can't be loosened by mis-configuring
+    a role's permissions; view access still follows the normal view_*
+    permission for whoever has it."""
+
+    def has_add_permission(self, request, obj=None):
+        # obj is unused (ModelAdmin doesn't pass it, InlineModelAdmin does -
+        # accept both call signatures).
+        return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+
 @admin.register(ConfigurationTemplate)
-class ConfigurationTemplateAdmin(admin.ModelAdmin):
+class ConfigurationTemplateAdmin(SuperuserOnlyEditMixin, admin.ModelAdmin):
     list_display = ("code", "name")
     search_fields = ("code", "name")
 
 
-class ConfigurationVersionItemInline(admin.TabularInline):
+class ConfigurationVersionItemInline(SuperuserOnlyEditMixin, admin.TabularInline):
     model = ConfigurationVersionItem
     extra = 1
 
 
 @admin.register(ConfigurationVersion)
-class ConfigurationVersionAdmin(admin.ModelAdmin):
+class ConfigurationVersionAdmin(SuperuserOnlyEditMixin, admin.ModelAdmin):
     list_display = ("__str__", "template", "version_label", "effective_date")
     list_filter = ("template",)
     inlines = [ConfigurationVersionItemInline]
@@ -84,7 +104,7 @@ class ConfigurationVersionAdmin(admin.ModelAdmin):
         return []
 
 
-class AssetConfigurationAssignmentInline(admin.TabularInline):
+class AssetConfigurationAssignmentInline(SuperuserOnlyEditMixin, admin.TabularInline):
     model = AssetConfigurationAssignment
     extra = 0
     fields = ("configuration_version", "effective_date", "notes", "created_at")
@@ -100,7 +120,7 @@ class AssetAdmin(admin.ModelAdmin):
 
 
 @admin.register(AssetConfigurationAssignment)
-class AssetConfigurationAssignmentAdmin(admin.ModelAdmin):
+class AssetConfigurationAssignmentAdmin(SuperuserOnlyEditMixin, admin.ModelAdmin):
     list_display = ("asset", "configuration_version", "effective_date", "created_at")
     list_filter = ("asset",)
 
