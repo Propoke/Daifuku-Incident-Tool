@@ -1,6 +1,6 @@
 from django.db import models
 
-from assets.models import Asset, ImmutableModel
+from assets.models import Asset, AssetMeterReading, ImmutableModel
 from core.models import ChecklistTemplate
 from workorders.models import WorkOrder
 
@@ -8,10 +8,16 @@ from workorders.models import WorkOrder
 class PMSchedule(models.Model):
     """A recurring preventive-maintenance trigger for one asset.
 
-    First cut is time-based only (a fixed day interval from a start date).
-    Usage/meter-based triggers (runtime hours, cycle counts) are explicitly
-    future scope per the feature draft - they depend on equipment actually
-    reporting meter readings, which nothing in this system does yet.
+    Two triggers can be active at once - a calendar interval
+    (interval_days, always required) and an optional meter-based one
+    (meter_type/meter_interval) - whichever fires first generates the
+    work order (maintenance.services.generate_due_work_orders). Material
+    handling equipment duty cycle varies far more than the calendar does,
+    so usage-based PM (every N running hours/cycles) is often the primary
+    trigger in practice, not calendar-based - this was flagged as a known
+    gap when PM scheduling was first built (it depended on equipment
+    actually reporting meter readings, which assets.AssetMeterReading now
+    provides via manual entry).
     """
 
     asset = models.ForeignKey(Asset, on_delete=models.PROTECT, related_name="pm_schedules")
@@ -42,6 +48,17 @@ class PMSchedule(models.Model):
     # due" is a plain indexed query (`next_due_date__lte=today`) instead of
     # recomputing recurrence in Python for every row on every check.
     next_due_date = models.DateField()
+
+    # Optional meter-based trigger, alongside the calendar one above.
+    # next_due_meter_value is denormalized the same way next_due_date is -
+    # a plain comparison against the asset's latest reading, not
+    # recomputed from full reading history on every check.
+    meter_type = models.CharField(max_length=20, choices=AssetMeterReading.MeterType.choices, blank=True)
+    meter_interval = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Repeat every N meter units (hours or cycles) - requires meter_type"
+    )
+    next_due_meter_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
     last_generated_work_order = models.ForeignKey(
         WorkOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
@@ -58,6 +75,9 @@ class PMSchedule(models.Model):
     def save(self, *args, **kwargs):
         if self._state.adding and not self.next_due_date:
             self.next_due_date = self.start_date
+        if self._state.adding and self.meter_type and self.meter_interval and self.next_due_meter_value is None:
+            anchor = AssetMeterReading.latest_value(self.asset, self.meter_type) or 0
+            self.next_due_meter_value = anchor + self.meter_interval
         super().save(*args, **kwargs)
 
 

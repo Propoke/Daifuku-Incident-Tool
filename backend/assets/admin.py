@@ -8,6 +8,7 @@ from .access import SiteScopedAdminMixin
 from .models import (
     Asset,
     AssetConfigurationAssignment,
+    AssetMeterReading,
     ConfigurationTemplate,
     ConfigurationVersion,
     ConfigurationVersionItem,
@@ -155,3 +156,27 @@ class AssetConfigurationAssignmentAdmin(SuperuserOnlyEditMixin, admin.ModelAdmin
         if obj is not None:
             return [f.name for f in self.model._meta.fields]
         return []
+
+
+@admin.register(AssetMeterReading)
+class AssetMeterReadingAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
+    """A technician logs a reading here the same way they'd log labor
+    hours today - v1 manual-entry input for meter-based PM triggers
+    (maintenance.PMSchedule.meter_interval). Append-only like the model
+    itself: readonly_fields locks down every field once a reading exists,
+    same pattern as ConfigurationVersion/AssetConfigurationAssignment."""
+
+    site_lookup = "asset__terminal__site_id"
+    list_display = ("asset", "meter_type", "value", "recorded_at", "recorded_by")
+    list_filter = ("meter_type",)
+    search_fields = ("asset__tag",)
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is not None:
+            return [f.name for f in self.model._meta.fields]
+        return ["recorded_by"]
+
+    def save_model(self, request, obj, form, change):
+        if obj.recorded_by_id is None:
+            obj.recorded_by = request.user
+        super().save_model(request, obj, form, change)

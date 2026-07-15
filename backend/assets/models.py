@@ -277,3 +277,43 @@ class AssetConfigurationAssignment(ImmutableModel):
 
     def __str__(self):
         return f"{self.asset.tag} -> {self.configuration_version} (since {self.effective_date})"
+
+
+class AssetMeterReading(ImmutableModel):
+    """A cumulative, odometer-style reading (running hours or cycle count),
+    manually logged - v1 input method per the CMMS audit; an IoT/sensor
+    feed would write to this same model later without changing anything
+    downstream. Append-only like other logs here: correcting a bad
+    reading means logging a new one, not editing history, since
+    maintenance.PMSchedule's meter-based trigger depends on this being a
+    reliable historical record, not a mutable "current value" field."""
+
+    class MeterType(models.TextChoices):
+        HOURS = "HOURS", "Running hours"
+        CYCLES = "CYCLES", "Cycles"
+
+    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="meter_readings")
+    meter_type = models.CharField(max_length=20, choices=MeterType.choices)
+    value = models.DecimalField(max_digits=12, decimal_places=2)
+    recorded_at = models.DateTimeField()
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-recorded_at"]
+
+    def __str__(self):
+        return f"{self.asset.tag} {self.get_meter_type_display()}: {self.value} @ {self.recorded_at:%Y-%m-%d}"
+
+    def save(self, *args, **kwargs):
+        if self.recorded_at is None:
+            from django.utils import timezone
+
+            self.recorded_at = timezone.now()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def latest_value(cls, asset, meter_type):
+        reading = cls.objects.filter(asset=asset, meter_type=meter_type).order_by("-recorded_at").first()
+        return reading.value if reading else None

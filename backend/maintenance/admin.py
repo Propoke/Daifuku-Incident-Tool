@@ -22,7 +22,17 @@ class PMScheduleGenerationInline(admin.TabularInline):
 @admin.register(PMSchedule)
 class PMScheduleAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
     site_lookup = "asset__terminal__site_id"
-    list_display = ("title", "asset", "assigned_team", "interval_days", "next_due_date", "priority", "is_active")
+    list_display = (
+        "title",
+        "asset",
+        "assigned_team",
+        "interval_days",
+        "next_due_date",
+        "meter_type",
+        "next_due_meter_value",
+        "priority",
+        "is_active",
+    )
     list_filter = ("is_active", "priority")
     search_fields = ("title", "asset__tag")
     readonly_fields = ("last_generated_work_order",)
