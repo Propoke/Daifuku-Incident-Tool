@@ -38,6 +38,12 @@ services:
     depends_on:
       - postgres
       - redis
+    volumes:
+      # Uploaded attachments (core.Attachment) live on local disk inside
+      # the container - without this volume they'd vanish on every
+      # redeploy/recreate. Not mounted on the celery containers below;
+      # nothing there touches media files.
+      - media_data:/app/media
     labels:
       - traefik.enable=true
       - traefik.http.routers.cmms.rule=Host(`${CMMS_HOSTNAME}`)
@@ -74,3 +80,4 @@ services:
 
 volumes:
   postgres_data:
+  media_data:

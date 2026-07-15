@@ -37,6 +37,12 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Serves STATIC_ROOT directly through gunicorn - no separate nginx
+    # container needed for a Standard-tier single-VM deployment. Nothing
+    # served /static/ at all outside DEBUG before this (runserver's
+    # dev-only auto-serving was the only thing working), which would have
+    # meant an unstyled admin and broken PWA assets on first real deploy.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -91,6 +97,14 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # Hashed filenames + far-future cache headers, served by WhiteNoise
+    # above. collectstatic (run in the Docker image's startup command)
+    # populates STATIC_ROOT from this.
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 
 # Attachment uploads. Local disk for now - move to object storage (MinIO,
 # already flagged in the infra plan) via django-storages once real volume
