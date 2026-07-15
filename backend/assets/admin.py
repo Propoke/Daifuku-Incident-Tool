@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from .access import SiteScopedAdminMixin
 from .models import (
     Asset,
     AssetConfigurationAssignment,
@@ -17,13 +18,16 @@ from .models import (
 
 
 @admin.register(Site)
-class SiteAdmin(admin.ModelAdmin):
+class SiteAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
+    site_lookup = "id"
     list_display = ("name", "code")
     search_fields = ("name", "code")
+    filter_horizontal = ("allowed_users", "allowed_groups")
 
 
 @admin.register(Terminal)
-class TerminalAdmin(admin.ModelAdmin):
+class TerminalAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
+    site_lookup = "site_id"
     list_display = ("code", "site")
     list_filter = ("site",)
 
@@ -112,7 +116,11 @@ class AssetConfigurationAssignmentInline(SuperuserOnlyEditMixin, admin.TabularIn
 
 
 @admin.register(Asset)
-class AssetAdmin(admin.ModelAdmin):
+class AssetAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
+    # Customer-owned assets (terminal is null) fall out of this filter
+    # entirely for site-scoped users - see assets/access.py's module
+    # docstring.
+    site_lookup = "terminal__site_id"
     list_display = ("tag", "name", "ownership", "terminal", "customer_site", "status", "criticality")
     list_filter = ("ownership", "status", "criticality")
     search_fields = ("tag", "name", "serial_number")

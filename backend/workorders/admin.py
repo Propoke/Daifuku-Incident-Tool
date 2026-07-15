@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from assets.access import SiteScopedAdminMixin
+
 from .models import (
     FailureCode,
     WorkOrder,
@@ -46,7 +48,8 @@ class WorkOrderPartUsageInline(admin.TabularInline):
 
 
 @admin.register(WorkOrder)
-class WorkOrderAdmin(admin.ModelAdmin):
+class WorkOrderAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
+    site_lookup = "asset__terminal__site_id"
     list_display = (
         "__str__",
         "asset",

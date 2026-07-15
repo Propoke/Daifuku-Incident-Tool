@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from assets.access import SiteScopedAdminMixin
+
 from .models import PMSchedule, PMScheduleGeneration
 
 
@@ -18,7 +20,8 @@ class PMScheduleGenerationInline(admin.TabularInline):
 
 
 @admin.register(PMSchedule)
-class PMScheduleAdmin(admin.ModelAdmin):
+class PMScheduleAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
+    site_lookup = "asset__terminal__site_id"
     list_display = ("title", "asset", "interval_days", "next_due_date", "priority", "is_active")
     list_filter = ("is_active", "priority")
     search_fields = ("title", "asset__tag")

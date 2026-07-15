@@ -1,17 +1,21 @@
 from django.contrib import admin
 
+from assets.access import SiteScopedAdminMixin
+
 from .models import StockLevel, StockLocation, StockReservation
 
 
 @admin.register(StockLocation)
-class StockLocationAdmin(admin.ModelAdmin):
+class StockLocationAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
+    site_lookup = "site_id"
     list_display = ("code", "name", "site")
     list_filter = ("site",)
     search_fields = ("code", "name")
 
 
 @admin.register(StockLevel)
-class StockLevelAdmin(admin.ModelAdmin):
+class StockLevelAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
+    site_lookup = "stock_location__site_id"
     list_display = (
         "spare_part",
         "stock_location",
@@ -29,6 +33,7 @@ class StockLevelAdmin(admin.ModelAdmin):
 
 
 @admin.register(StockReservation)
-class StockReservationAdmin(admin.ModelAdmin):
+class StockReservationAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
+    site_lookup = "stock_level__stock_location__site_id"
     list_display = ("stock_level", "work_order", "quantity", "status", "reserved_by", "reserved_at")
     list_filter = ("status",)

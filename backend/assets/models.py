@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -30,6 +32,14 @@ class ImmutableModel(models.Model):
 class Site(models.Model):
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=50, unique=True)
+
+    # Who can see this site's tickets/stock/assets - see assets/access.py.
+    # A user's effective access is the union of their own assignment here
+    # plus every group they belong to's assignment. Users in the "Admin" or
+    # "OEM" group, and superusers, bypass this entirely (see everything) -
+    # not represented here, handled in assets/access.py.
+    allowed_users = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="accessible_sites")
+    allowed_groups = models.ManyToManyField(Group, blank=True, related_name="accessible_sites")
 
     def __str__(self):
         return self.name
