@@ -1,6 +1,7 @@
 from django.db import models
 
 from assets.models import Asset, ImmutableModel
+from core.models import ChecklistTemplate
 from workorders.models import WorkOrder
 
 
@@ -15,7 +16,16 @@ class PMSchedule(models.Model):
 
     asset = models.ForeignKey(Asset, on_delete=models.PROTECT, related_name="pm_schedules")
     title = models.CharField(max_length=200)
-    description = models.TextField(blank=True, help_text="Checklist / procedure notes for the generated work order")
+    description = models.TextField(blank=True, help_text="Free-text procedure notes for the generated work order")
+    # Structured steps (torque to spec, inspect belt tension, verify
+    # E-stop) a technician actually checks off on the generated work
+    # order - copied onto WorkOrder.checklist_template at generation time
+    # (maintenance.services.generate_due_work_orders), same as
+    # assigned_team. Optional: description above still covers ad-hoc PM
+    # that doesn't warrant a formal checklist.
+    checklist_template = models.ForeignKey(
+        ChecklistTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name="pm_schedules"
+    )
 
     # Copied onto WorkOrder.assigned_team by the generation service each
     # time a work order is created from this schedule - the "shift-aware

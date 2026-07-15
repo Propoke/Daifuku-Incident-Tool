@@ -3,9 +3,12 @@ from django.contrib import admin
 from assets.access import SiteScopedAdminMixin
 from core.admin import AttachmentInline, SetsAttachmentUploaderMixin
 
+from core.models import ChecklistItem
+
 from .models import (
     FailureCode,
     WorkOrder,
+    WorkOrderChecklistResponse,
     WorkOrderComment,
     WorkOrderLaborEntry,
     WorkOrderPartUsage,
@@ -67,6 +70,38 @@ class WorkOrderCommentInline(admin.TabularInline):
         return False
 
 
+class WorkOrderChecklistResponseInline(admin.TabularInline):
+    """Add-only, like WorkOrderCommentInline - responses can't be edited
+    or deleted here, only appended to (see WorkOrderChecklistResponse's
+    ImmutableModel base). The checklist_item dropdown is restricted to
+    items belonging to this work order's own checklist_template, not
+    every ChecklistItem in the system."""
+
+    model = WorkOrderChecklistResponse
+    extra = 1
+    fields = ("checklist_item", "response_text", "completed_by", "completed_at")
+    readonly_fields = ("completed_by", "completed_at")
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_formset(self, request, obj=None, **kwargs):
+        self.parent_work_order = obj
+        return super().get_formset(request, obj, **kwargs)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "checklist_item":
+            work_order = getattr(self, "parent_work_order", None)
+            if work_order is not None and work_order.checklist_template_id:
+                kwargs["queryset"] = ChecklistItem.objects.filter(template_id=work_order.checklist_template_id)
+            else:
+                kwargs["queryset"] = ChecklistItem.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
 class SetsWorkOrderCommentAuthorMixin:
     """Mix into WorkOrderAdmin so comments added through
     WorkOrderCommentInline get `author` set automatically. Same issue as
@@ -89,9 +124,31 @@ class SetsWorkOrderCommentAuthorMixin:
             super().save_formset(request, form, formset, change)
 
 
+class SetsWorkOrderChecklistResponseCompletedByMixin:
+    """Same fix as SetsWorkOrderCommentAuthorMixin, for
+    WorkOrderChecklistResponseInline's completed_by field."""
+
+    def save_formset(self, request, form, formset, change):
+        if formset.model is WorkOrderChecklistResponse:
+            instances = formset.save(commit=False)
+            for instance in instances:
+                if instance.completed_by_id is None:
+                    instance.completed_by = request.user
+                instance.save()
+            formset.save_m2m()
+            for obj in formset.deleted_objects:
+                obj.delete()
+        else:
+            super().save_formset(request, form, formset, change)
+
+
 @admin.register(WorkOrder)
 class WorkOrderAdmin(
-    SetsWorkOrderCommentAuthorMixin, SetsAttachmentUploaderMixin, SiteScopedAdminMixin, admin.ModelAdmin
+    SetsWorkOrderChecklistResponseCompletedByMixin,
+    SetsWorkOrderCommentAuthorMixin,
+    SetsAttachmentUploaderMixin,
+    SiteScopedAdminMixin,
+    admin.ModelAdmin,
 ):
     site_lookup = "asset__terminal__site_id"
     list_display = (
@@ -115,6 +172,7 @@ class WorkOrderAdmin(
     inlines = [
         WorkOrderStatusChangeInline,
         WorkOrderCommentInline,
+        WorkOrderChecklistResponseInline,
         WorkOrderLaborEntryInline,
         WorkOrderPartUsageInline,
         AttachmentInline,

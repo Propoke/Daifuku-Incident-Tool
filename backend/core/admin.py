@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.contenttypes.admin import GenericTabularInline
 
-from .models import Attachment
+from .models import Attachment, ChecklistItem, ChecklistTemplate
 
 
 class AttachmentInline(GenericTabularInline):
@@ -46,3 +46,16 @@ class AttachmentAdmin(admin.ModelAdmin):
     list_display = ("__str__", "content_type", "object_id", "uploaded_by", "uploaded_at")
     list_filter = ("content_type",)
     readonly_fields = ("uploaded_by", "uploaded_at")
+
+
+class ChecklistItemInline(admin.TabularInline):
+    model = ChecklistItem
+    extra = 1
+    fields = ("order", "text", "response_type")
+
+
+@admin.register(ChecklistTemplate)
+class ChecklistTemplateAdmin(admin.ModelAdmin):
+    list_display = ("name",)
+    search_fields = ("name",)
+    inlines = [ChecklistItemInline]

@@ -7,15 +7,19 @@ from rest_framework.views import APIView
 
 from assets.access import scope_queryset_to_sites
 from assets.models import Asset
+from core.models import ChecklistItem
 from inventory.models import StockLevel, StockLocation
 from inventory.services import consume_stock, find_spare_part_by_code
-from workorders.models import WorkOrder
+from workorders.models import WorkOrder, WorkOrderChecklistResponse
 
 from .permissions import HasModelPermission
 from .serializers import (
     AssetLookupSerializer,
+    ChecklistItemStatusSerializer,
+    ChecklistResponseCreateSerializer,
     ConsumePartRequestSerializer,
     SparePartLookupSerializer,
+    WorkOrderChecklistResponseSerializer,
     WorkOrderCommentSerializer,
     WorkOrderDetailSerializer,
     WorkOrderListSerializer,
@@ -156,6 +160,75 @@ class WorkOrderCommentListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(work_order=self.get_work_order(), author=self.request.user)
+
+
+class WorkOrderChecklistView(APIView):
+    """GET/POST /api/mobile/workorders/<id>/checklist/ - the phone
+    equivalent of WorkOrderChecklistResponseInline: view this ticket's
+    checklist (empty if it has none) with the latest answer per item, and
+    submit a new answer for one item. A new answer doesn't overwrite the
+    old one (WorkOrderChecklistResponse is append-only) - it just becomes
+    the new "latest" shown here, so a failed-then-fixed-then-passed step
+    stays visible in the admin's full history.
+    """
+
+    def get_permissions(self):
+        self.required_permission = (
+            "workorders.add_workorderchecklistresponse"
+            if self.request.method == "POST"
+            else "workorders.view_workorderchecklistresponse"
+        )
+        return [HasModelPermission()]
+
+    def get_work_order(self):
+        return get_object_or_404(_site_scoped_work_order_queryset(self.request.user), pk=self.kwargs["pk"])
+
+    def get(self, request, pk):
+        work_order = self.get_work_order()
+        if work_order.checklist_template_id is None:
+            return Response([])
+
+        latest_by_item = {}
+        responses = WorkOrderChecklistResponse.objects.filter(work_order=work_order).select_related(
+            "completed_by"
+        )
+        for response in responses:
+            # Model orders by completed_at ascending, so the last one seen
+            # per item in this loop is the latest.
+            latest_by_item[response.checklist_item_id] = response
+
+        rows = []
+        for item in work_order.checklist_template.items.all():
+            latest = latest_by_item.get(item.id)
+            rows.append(
+                {
+                    "id": item.id,
+                    "text": item.text,
+                    "response_type": item.response_type,
+                    "latest_response": latest.response_text if latest else None,
+                    "latest_response_by": latest.completed_by.username if latest and latest.completed_by else None,
+                    "latest_response_at": latest.completed_at if latest else None,
+                }
+            )
+        return Response(ChecklistItemStatusSerializer(rows, many=True).data)
+
+    def post(self, request, pk):
+        work_order = self.get_work_order()
+        serializer = ChecklistResponseCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        item = get_object_or_404(
+            ChecklistItem,
+            pk=serializer.validated_data["checklist_item_id"],
+            template_id=work_order.checklist_template_id,
+        )
+        response = WorkOrderChecklistResponse.objects.create(
+            work_order=work_order,
+            checklist_item=item,
+            response_text=serializer.validated_data["response_text"],
+            completed_by=request.user,
+        )
+        return Response(WorkOrderChecklistResponseSerializer(response).data, status=status.HTTP_201_CREATED)
 
 
 class ConsumePartView(APIView):

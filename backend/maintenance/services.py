@@ -35,6 +35,7 @@ def generate_due_work_orders(as_of=None):
                 description=schedule.description,
                 due_date=schedule.next_due_date,
                 assigned_team=schedule.assigned_team,
+                checklist_template=schedule.checklist_template,
             )
             PMScheduleGeneration.objects.create(
                 pm_schedule=schedule,

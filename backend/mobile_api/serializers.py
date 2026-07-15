@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from assets.models import Asset
 from inventory.models import StockLevel
-from workorders.models import WorkOrder, WorkOrderComment, WorkOrderPartUsage
+from workorders.models import WorkOrder, WorkOrderChecklistResponse, WorkOrderComment, WorkOrderPartUsage
 
 
 class StockLevelSerializer(serializers.ModelSerializer):
@@ -60,6 +60,7 @@ class WorkOrderDetailSerializer(WorkOrderListSerializer):
             "resolution",
             "actual_open_time",
             "actual_close_time",
+            "checklist_template",
         ]
 
 
@@ -88,3 +89,30 @@ class WorkOrderCommentSerializer(serializers.ModelSerializer):
         model = WorkOrderComment
         fields = ["id", "body", "author_username", "created_at"]
         read_only_fields = ["id", "author_username", "created_at"]
+
+
+class ChecklistItemStatusSerializer(serializers.Serializer):
+    """One row of GET /workorders/<id>/checklist/ - a checklist item plus
+    whatever the latest response for it is, if any. Not a ModelSerializer:
+    it's a merge of ChecklistItem and (at most one) WorkOrderChecklistResponse,
+    not a single model instance."""
+
+    id = serializers.IntegerField()
+    text = serializers.CharField()
+    response_type = serializers.CharField()
+    latest_response = serializers.CharField(allow_null=True)
+    latest_response_by = serializers.CharField(allow_null=True)
+    latest_response_at = serializers.DateTimeField(allow_null=True)
+
+
+class ChecklistResponseCreateSerializer(serializers.Serializer):
+    checklist_item_id = serializers.IntegerField()
+    response_text = serializers.CharField(max_length=300)
+
+
+class WorkOrderChecklistResponseSerializer(serializers.ModelSerializer):
+    completed_by_username = serializers.CharField(source="completed_by.username", read_only=True, default=None)
+
+    class Meta:
+        model = WorkOrderChecklistResponse
+        fields = ["id", "checklist_item", "response_text", "completed_by_username", "completed_at"]

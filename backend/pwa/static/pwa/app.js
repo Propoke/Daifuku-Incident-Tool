@@ -96,6 +96,16 @@ function renderTicketDetail(t) {
       <h3>Book a part onto this ticket</h3>
       <button id="scan-for-ticket">Scan barcode</button>
     </div>
+    ${
+      t.checklist_template
+        ? `
+    <div class="card">
+      <h3>Checklist</h3>
+      <div id="checklist-list" class="muted">Loading&hellip;</div>
+      <p id="checklist-msg"></p>
+    </div>`
+        : ""
+    }
     <div class="card">
       <h3>Comments</h3>
       <div id="comments-list" class="muted">Loading&hellip;</div>
@@ -125,6 +135,71 @@ function renderTicketDetail(t) {
   document.getElementById("scan-for-ticket").addEventListener("click", () => showScan(t));
   document.getElementById("comment-submit").addEventListener("click", () => postComment(t));
   loadComments(t);
+  if (t.checklist_template) loadChecklist(t);
+}
+
+async function loadChecklist(ticket) {
+  const listEl = document.getElementById("checklist-list");
+  try {
+    const items = await api(`/workorders/${ticket.id}/checklist/`);
+    if (!items.length) {
+      listEl.innerHTML = `<p class="muted">No checklist items.</p>`;
+      return;
+    }
+    listEl.innerHTML = items
+      .map((item) => {
+        const statusLine = item.latest_response
+          ? `<span class="success">${escapeHtml(item.latest_response)}</span> <span class="muted">by ${escapeHtml(
+              item.latest_response_by || "unknown"
+            )} at ${escapeHtml(new Date(item.latest_response_at).toLocaleString())}</span>`
+          : `<span class="muted">Not yet recorded</span>`;
+        const inputHtml =
+          item.response_type === "PASS_FAIL"
+            ? `<button class="checklist-pass" data-item="${item.id}">Pass</button>` +
+              `<button class="checklist-fail secondary" data-item="${item.id}">Fail</button>`
+            : `<input class="checklist-input" data-item="${item.id}" type="${
+                item.response_type === "NUMERIC" ? "number" : "text"
+              }" placeholder="Enter response">` +
+              `<button class="checklist-submit" data-item="${item.id}">Submit</button>`;
+        return `
+      <div class="card">
+        <p>${escapeHtml(item.text)}</p>
+        <p>${statusLine}</p>
+        ${inputHtml}
+      </div>`;
+      })
+      .join("");
+
+    listEl.querySelectorAll(".checklist-pass").forEach((btn) =>
+      btn.addEventListener("click", () => submitChecklistResponse(ticket, btn.dataset.item, "PASS"))
+    );
+    listEl.querySelectorAll(".checklist-fail").forEach((btn) =>
+      btn.addEventListener("click", () => submitChecklistResponse(ticket, btn.dataset.item, "FAIL"))
+    );
+    listEl.querySelectorAll(".checklist-submit").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const input = listEl.querySelector(`.checklist-input[data-item="${btn.dataset.item}"]`);
+        const value = input.value.trim();
+        if (value) submitChecklistResponse(ticket, btn.dataset.item, value);
+      })
+    );
+  } catch (e) {
+    listEl.innerHTML = `<p class="error">${escapeHtml(e.message)}</p>`;
+  }
+}
+
+async function submitChecklistResponse(ticket, itemId, responseText) {
+  const msg = document.getElementById("checklist-msg");
+  try {
+    await api(`/workorders/${ticket.id}/checklist/`, {
+      method: "POST",
+      body: JSON.stringify({ checklist_item_id: parseInt(itemId, 10), response_text: responseText }),
+    });
+    msg.innerHTML = "";
+    loadChecklist(ticket);
+  } catch (e) {
+    msg.innerHTML = `<span class="error">${escapeHtml(e.message)}</span>`;
+  }
 }
 
 async function loadComments(ticket) {

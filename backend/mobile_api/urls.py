@@ -14,6 +14,11 @@ urlpatterns = [
         name="mobile-workorder-comments",
     ),
     path(
+        "workorders/<int:pk>/checklist/",
+        views.WorkOrderChecklistView.as_view(),
+        name="mobile-workorder-checklist",
+    ),
+    path(
         "workorders/<int:pk>/consume-part/", views.ConsumePartView.as_view(), name="mobile-workorder-consume-part"
     ),
 ]

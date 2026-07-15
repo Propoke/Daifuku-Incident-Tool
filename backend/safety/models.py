@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 
 from assets.models import Asset, Site
+from core.models import ChecklistTemplate
 from workorders.models import WorkOrder
 
 # Calibration/inspection due-date tracking (feature draft §11) isn't a
@@ -24,6 +25,14 @@ class PermitToWork(models.Model):
     )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    # Reference-only for now: the step-by-step LOTO procedure to follow,
+    # shown alongside the permit. Response capture (who actually checked
+    # off which step) is only built for WorkOrder so far
+    # (workorders.models.WorkOrderChecklistResponse) - a permit-level
+    # equivalent is a known follow-up, not built in this pass.
+    checklist_template = models.ForeignKey(
+        ChecklistTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name="permits_to_work"
+    )
     lockout_tagout_applied = models.BooleanField(default=False)
     issued_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="permits_issued"

@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 
 from assets.models import Asset, AssetConfigurationAssignment, ImmutableModel, SparePart
+from core.models import ChecklistItem, ChecklistTemplate
 from core.notifications import notify_work_order_assigned
 
 
@@ -76,6 +77,16 @@ class WorkOrder(models.Model):
         null=True,
         blank=True,
         related_name="work_orders",
+    )
+
+    # Copied from PMSchedule.checklist_template when this work order is a
+    # PM auto-generation (maintenance.services.generate_due_work_orders),
+    # or set manually for a corrective ticket that warrants a formal
+    # procedure. Optional - most corrective work orders won't have one.
+    # What was actually filled out lives in WorkOrderChecklistResponse
+    # below, not here.
+    checklist_template = models.ForeignKey(
+        ChecklistTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name="work_orders"
     )
 
     failure_code = models.ForeignKey(
@@ -188,6 +199,34 @@ class WorkOrderComment(ImmutableModel):
 
     def __str__(self):
         return f"Comment on {self.work_order} by {self.author}"
+
+
+class WorkOrderChecklistResponse(ImmutableModel):
+    """What a technician actually entered for one ChecklistItem on one
+    work order - the answer to "PM compliance measures the ticket got
+    closed, but did the actual steps get done?". Append-only like the
+    other work-order logs: if a step needs redoing (failed the first
+    check, fixed it, re-checked), that's a new response row for the same
+    item rather than editing the old one, so the full attempt history
+    stays visible instead of being overwritten. Callers wanting "the
+    current answer" per item should take the latest response per
+    checklist_item (highest completed_at)."""
+
+    work_order = models.ForeignKey(WorkOrder, on_delete=models.CASCADE, related_name="checklist_responses")
+    checklist_item = models.ForeignKey(ChecklistItem, on_delete=models.PROTECT, related_name="+")
+    response_text = models.CharField(
+        max_length=300, help_text="PASS/FAIL, a number, or free text, depending on the item's response_type"
+    )
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["completed_at"]
+
+    def __str__(self):
+        return f"{self.work_order} - {self.checklist_item.text}: {self.response_text}"
 
 
 class WorkOrderLaborEntry(models.Model):
