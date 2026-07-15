@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "inventory",
     "mobile_api",
     "reporting",
+    "safety",
 ]
 
 MIDDLEWARE = [

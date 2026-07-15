@@ -122,7 +122,7 @@ A custom, self-hosted CMMS for managing material handling and automation equipme
 ## Suggested Phasing (for discussion, not final)
 
 - **Phase 1 (MVP) — done**: Site/Terminal/Asset structure, Items & versioned Configurations (incl. per-asset override + dated history), Item↔SpareSKU mapping, asset metadata (firmware/software/install date), customer/asset ownership model, spare parts basics + stock/reservation logic, PM scheduling with auto ticket creation, work orders, RBAC with **Entra ID authentication**, shift/team model, and (beyond the original Phase 1 scope but built alongside it) site-scoped data access.
-- **Phase 2**: Field service dispatch & mobile technician app (backlogged — see `docs/mobile-app-backlog.md`; the API it'll consume is already built), service contract/SLA enforcement logic, customer-facing portal, helpdesk self-service portal, reporting/dashboards, safety & compliance module.
+- **Phase 2 — in progress**: ~~reporting/dashboards~~ done, ~~service contract/SLA tracking~~ done (measurement only, no auto-escalation), ~~safety & compliance module~~ done (permit-to-work/LOTO + incident/near-miss reporting; calibration/inspection due-dates reuse the existing PMSchedule mechanism rather than a new one). Still open: field service dispatch & mobile technician app (backlogged — see `docs/mobile-app-backlog.md`; the API it'll consume is already built), helpdesk self-service portal, customer-facing portal.
 
 ---
 
