@@ -4,5 +4,4 @@ __pycache__/
 backend/staticfiles/
 *.sqlite3
 
-certs/*.crt
-certs/*.key
+traefik/acme/acme.json

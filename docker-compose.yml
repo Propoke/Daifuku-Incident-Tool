@@ -4,19 +4,22 @@ services:
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
-      - --providers.file.directory=/etc/traefik/dynamic
-      - --providers.file.watch=true
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --certificatesresolvers.cloudflare.acme.dnschallenge=true
+      - --certificatesresolvers.cloudflare.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.cloudflare.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.cloudflare.acme.storage=/etc/traefik/acme/acme.json
+      - --certificatesresolvers.cloudflare.acme.caserver=${ACME_CA_SERVER:-https://acme-v02.api.letsencrypt.org/directory}
     ports:
       - "80:80"
       - "443:443"
+    env_file: .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/dynamic:/etc/traefik/dynamic:ro
-      - ./certs:/etc/traefik/certs:ro
+      - ./traefik/acme:/etc/traefik/acme
     restart: unless-stopped
 
   postgres:
@@ -36,9 +39,9 @@ services:
       - postgres
     labels:
       - traefik.enable=true
-      - traefik.http.routers.cmms.rule=Host(`${CMMS_HOSTNAME:-cmms.internal.local}`)
+      - traefik.http.routers.cmms.rule=Host(`${CMMS_HOSTNAME}`)
       - traefik.http.routers.cmms.entrypoints=websecure
-      - traefik.http.routers.cmms.tls=true
+      - traefik.http.routers.cmms.tls.certresolver=cloudflare
       - traefik.http.services.cmms.loadbalancer.server.port=8000
     restart: unless-stopped
 

@@ -61,11 +61,11 @@ Indicative resource split within the VM (adjust once real usage is observed):
 
 ## Networking & Access
 
-- Internal DNS name (e.g. `cmms.internal.<domain>`), no port-forward to the internet.
+- Internal DNS name in a Cloudflare-managed zone (e.g. `cmms.internal.<company-domain>`), no port-forward to the internet — the hostname only needs a DNS record, it doesn't need to be internet-routable.
 - Firewall: inbound restricted to internal subnets/sites only.
-- TLS terminated at Traefik even internally, using an internal CA-issued certificate if one exists, otherwise a self-signed cert trusted via internal distribution (avoids plaintext internal traffic — cheap to do now, painful to retrofit).
-- **Important exception to "internal only"**: because Entra ID is cloud-hosted, the VM needs **outbound HTTPS** to Microsoft identity endpoints (`login.microsoftonline.com` and related) for the OIDC flow to work. Inbound stays internal-only; outbound to Microsoft's auth endpoints must be allowed through the firewall. Same applies later if a real email/SMTP relay or NTP is used.
-- Designed so a later internet-exposure phase only adds a WAN-facing reverse proxy/VPN in front of the existing Traefik — no rearchitecture needed, per the original constraint.
+- **TLS: publicly-trusted certificate via Let's Encrypt, issued through Traefik's native ACME DNS-01 challenge against Cloudflare** — decided over a self-signed cert or a private/internal CA (step-ca, AD CS). Rationale: at 100+ users across many sites, plus a customer-facing portal and field technicians on personal devices on the roadmap, trust distribution for a private CA becomes its own ongoing burden, whereas a public CA cert is trusted everywhere by default with zero client-side setup. Renewal is fully automatic (Traefik handles it via the ACME DNS-01 flow), and this is the same mechanism the system will use once it's actually internet-facing — no TLS rework needed for that later phase, just a firewall/routing change. See `README.md` for the concrete setup (Cloudflare-scoped API token, ACME email, staging vs. production Let's Encrypt endpoint).
+- **Outbound exceptions to "internal only"**: the VM needs outbound HTTPS to (1) Microsoft's Entra identity endpoints (`login.microsoftonline.com` and related) for the OIDC login flow, and (2) Let's Encrypt's ACME API plus the Cloudflare API for certificate issuance/renewal. Inbound stays internal-only in both cases; only these specific outbound destinations need firewall allowances. Same pattern would apply later if a real email/SMTP relay or NTP service is added.
+- Designed so a later internet-exposure phase only adds a WAN-facing route to the existing Traefik — no rearchitecture and no TLS migration needed, per the original constraint.
 
 ---
 
@@ -108,6 +108,6 @@ The Standard sizing above is scoped for **production**. Recommend a separate, sm
 ## Open Items / Next Steps
 
 1. Confirm base OS image for the VM (e.g. Debian 12 or Ubuntu 22.04/24.04 LTS) — either works fine with Docker; pick whichever matches existing Proxmox templates/patching conventions.
-2. Confirm internal DNS/certificate approach (internal CA available, or self-signed).
+2. ~~Confirm internal DNS/certificate approach~~ — done: Let's Encrypt via Cloudflare DNS-01 (see Networking & Access above).
 3. Decide staging environment budget/timing (can be deferred to just before Phase 1 build starts rather than provisioned immediately).
-4. Once the above are confirmed, next step is provisioning the VM and standing up the base Docker Compose skeleton (Traefik + Postgres + empty Django project + Entra OIDC login) as the literal first "walking skeleton" milestone from the feature draft's risk audit.
+4. ~~Stand up the base Docker Compose skeleton~~ — done: Traefik + Postgres + Django + Entra OIDC login is in the repo (`docker-compose.yml`, `backend/`), verified locally (migrations, health check, OIDC redirect flow). Not yet verified as a full `docker compose up` stack (this sandbox blocks Docker Hub pulls) — worth a quick smoke test on the actual Proxmox VM before trusting it.

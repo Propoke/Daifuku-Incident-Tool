@@ -1,4 +1,0 @@
-tls:
-  certificates:
-    - certFile: /etc/traefik/certs/cmms.crt
-      keyFile: /etc/traefik/certs/cmms.key
