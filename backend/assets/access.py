@@ -10,12 +10,13 @@ Orthogonal to the RBAC roles in core/migrations/000*_*.py: role permissions
 control WHAT a user can do (add/change/view a given model); site access
 controls WHICH rows of that model they can do it to.
 
-Only assets tied to an internal Site (Site -> Terminal -> Asset) are
-scoped this way. Customer-owned assets (Asset.ownership == CUSTOMER, via
-CustomerSite) have no Site at all, and are simply invisible to site-scoped
-users under this mechanism - not addressed by this pass. Fine for now
-since none of the current roles is customer-facing yet, but worth
-revisiting once the field-service/customer-portal work happens.
+Every Asset requires a Terminal (Site -> Terminal -> Asset), regardless of
+who owns it - ownership (Asset.owner_customer) is a separate, purely
+identifying attribute (for billing/warranty/contract purposes), not an
+access-control one. A customer-owned asset physically sitting at one of
+our Sites is scoped exactly like an internally-owned one: by that Site,
+not by who owns it. There is deliberately no separate customer-based
+scoping axis - site access is the only gate.
 """
 
 BYPASS_GROUPS = ["Admin", "OEM"]

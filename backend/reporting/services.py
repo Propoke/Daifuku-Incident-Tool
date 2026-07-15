@@ -1,9 +1,13 @@
+from django.contrib.admin.models import LogEntry
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count, DecimalField, DurationField, ExpressionWrapper, F, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from assets.access import get_accessible_site_ids
+from assets.access import get_accessible_site_ids, scope_queryset_to_sites
+from assets.models import Asset
 from maintenance.models import PMScheduleGeneration
+from safety.models import IncidentReport, PermitToWork
 from workorders.models import WorkOrder, WorkOrderLaborEntry, WorkOrderPartUsage
 from workorders.sla import get_sla_status
 
@@ -114,13 +118,10 @@ def top_downtime_assets(user, period_days=DEFAULT_PERIOD_DAYS, limit=5):
 
 
 def sla_summary(user):
-    """SLA status across open work orders for customer-owned assets under
-    contract. Customer-owned assets have no Site (Asset.terminal is null),
-    so the same site-scoping filter used everywhere else naturally makes
-    this report visible only to Admin/OEM for now - consistent with the
-    customer-data-segregation boundary noted in assets/access.py, not a
-    separate rule invented here.
-    """
+    """SLA status across open work orders for assets under a service
+    contract. Scoped by site like everything else - visible to whoever
+    has access to the site the asset physically sits at, regardless of who
+    owns the asset."""
     queryset = _site_scope(user, WorkOrder.objects.all(), "asset__terminal__site_id")
     queryset = queryset.exclude(status=WorkOrder.Status.CLOSED).filter(asset__service_contract__isnull=False)
     queryset = queryset.select_related("asset__service_contract").prefetch_related("status_changes")
@@ -154,4 +155,35 @@ def dashboard_data(user, period_days=DEFAULT_PERIOD_DAYS):
         "labor_hours_total": labor_hours_total(user, period_days),
         "sla_summary": sla_summary(user),
         "top_downtime_assets": top_downtime_assets(user, period_days),
+    }
+
+
+def get_accessible_asset_or_none(user, asset_id):
+    """Site-scoped lookup - returns None if the asset doesn't exist or
+    isn't at one of the user's accessible sites, so callers can 404
+    without distinguishing "doesn't exist" from "not yours to see"."""
+    queryset = scope_queryset_to_sites(user, Asset.objects.all(), "terminal__site_id")
+    return queryset.filter(pk=asset_id).first()
+
+
+def asset_history(asset):
+    """Everything tied to one asset: tickets, configuration history,
+    PM schedules, permits/incidents, and field-level changes. The change
+    log reuses Django admin's built-in LogEntry rather than building a
+    parallel audit-log mechanism - it only captures edits made through
+    /admin/, which is the only place Asset is currently editable, but
+    won't cover changes made through a future non-admin UI or the API.
+    """
+    changes = LogEntry.objects.filter(
+        content_type=ContentType.objects.get_for_model(Asset), object_id=str(asset.pk)
+    ).select_related("user").order_by("-action_time")
+
+    return {
+        "asset": asset,
+        "work_orders": asset.work_orders.order_by("-created_at"),
+        "configuration_assignments": asset.configuration_assignments.order_by("-effective_date"),
+        "pm_schedules": asset.pm_schedules.all(),
+        "permits_to_work": asset.permits_to_work.order_by("-created_at"),
+        "incident_reports": asset.incident_reports.order_by("-occurred_at"),
+        "changes": changes,
     }

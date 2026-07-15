@@ -189,10 +189,6 @@ class ConfigurationVersionItem(models.Model):
 
 
 class Asset(models.Model):
-    class Ownership(models.TextChoices):
-        INTERNAL = "INTERNAL", "Internal"
-        CUSTOMER = "CUSTOMER", "Customer-owned"
-
     class Status(models.TextChoices):
         INSTALLED = "INSTALLED", "Installed"
         ACTIVE = "ACTIVE", "Active"
@@ -206,14 +202,23 @@ class Asset(models.Model):
 
     tag = models.CharField(max_length=100, unique=True, help_text="Asset tag / QR-code identifier")
     name = models.CharField(max_length=200)
-    ownership = models.CharField(max_length=20, choices=Ownership.choices)
 
-    # Internal placement
-    terminal = models.ForeignKey(Terminal, on_delete=models.PROTECT, related_name="assets", null=True, blank=True)
+    # Physical location, required for every asset regardless of who owns
+    # it - this is what site-scoping (assets.access) keys off. Visibility
+    # is determined by site access alone, not by ownership.
+    terminal = models.ForeignKey(Terminal, on_delete=models.PROTECT, related_name="assets")
 
-    # Customer-owned placement
+    # Ownership is an identifying/billing attribute, not an access-control
+    # one: null means internally owned; set means owned by that customer,
+    # even though the asset still physically sits at (and is scoped by)
+    # one of our own Sites/Terminals. customer_site/service_contract are
+    # optional context for that ownership (billing address, SLA contract),
+    # independent of the physical terminal above.
+    owner_customer = models.ForeignKey(
+        Customer, on_delete=models.PROTECT, related_name="owned_assets", null=True, blank=True
+    )
     customer_site = models.ForeignKey(
-        CustomerSite, on_delete=models.PROTECT, related_name="assets", null=True, blank=True
+        CustomerSite, on_delete=models.SET_NULL, related_name="assets", null=True, blank=True
     )
     service_contract = models.ForeignKey(
         ServiceContract, on_delete=models.SET_NULL, related_name="assets", null=True, blank=True
@@ -228,19 +233,12 @@ class Asset(models.Model):
     criticality = models.CharField(max_length=10, choices=Criticality.choices, default=Criticality.MEDIUM)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.INSTALLED)
 
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                check=(
-                    models.Q(ownership="INTERNAL", terminal__isnull=False, customer_site__isnull=True)
-                    | models.Q(ownership="CUSTOMER", customer_site__isnull=False, terminal__isnull=True)
-                ),
-                name="asset_ownership_location_consistency",
-            )
-        ]
-
     def __str__(self):
         return f"{self.tag} - {self.name}"
+
+    @property
+    def is_customer_owned(self):
+        return self.owner_customer_id is not None
 
     @property
     def current_configuration_assignment(self):

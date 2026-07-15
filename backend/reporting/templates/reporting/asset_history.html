@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ asset.tag }} history</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; margin-bottom: 2rem; width: 100%; max-width: 900px; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.8rem; text-align: left; }
+    h2 { margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>{{ asset.tag }} — {{ asset.name }}</h1>
+  <p>
+    Owner: {% if asset.owner_customer %}{{ asset.owner_customer.name }}{% else %}Internal{% endif %}
+    | Status: {{ asset.status }}
+    | Criticality: {{ asset.criticality }}
+    | Location: {{ asset.terminal }}
+  </p>
+
+  <h2>Work orders / tickets ({{ work_orders|length }})</h2>
+  <table>
+    <tr><th>Title</th><th>Type</th><th>Status</th><th>Priority</th><th>Created</th></tr>
+    {% for wo in work_orders %}
+    <tr><td>{{ wo.title }}</td><td>{{ wo.work_order_type }}</td><td>{{ wo.status }}</td><td>{{ wo.priority }}</td><td>{{ wo.created_at }}</td></tr>
+    {% empty %}
+    <tr><td colspan="5">No work orders yet.</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Configuration history</h2>
+  <table>
+    <tr><th>Configuration</th><th>Since</th></tr>
+    {% for a in configuration_assignments %}
+    <tr><td>{{ a.configuration_version }}</td><td>{{ a.effective_date }}</td></tr>
+    {% empty %}
+    <tr><td colspan="2">No configuration assigned yet.</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>PM schedules</h2>
+  <table>
+    <tr><th>Title</th><th>Every (days)</th><th>Next due</th><th>Active</th></tr>
+    {% for s in pm_schedules %}
+    <tr><td>{{ s.title }}</td><td>{{ s.interval_days }}</td><td>{{ s.next_due_date }}</td><td>{{ s.is_active }}</td></tr>
+    {% empty %}
+    <tr><td colspan="4">No PM schedules.</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Permits to work</h2>
+  <table>
+    <tr><th>Title</th><th>Status</th><th>LOTO</th><th>Valid from</th><th>Valid until</th></tr>
+    {% for p in permits_to_work %}
+    <tr><td>{{ p.title }}</td><td>{{ p.status }}</td><td>{{ p.lockout_tagout_applied }}</td><td>{{ p.valid_from }}</td><td>{{ p.valid_until }}</td></tr>
+    {% empty %}
+    <tr><td colspan="5">No permits.</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Incident reports</h2>
+  <table>
+    <tr><th>Severity</th><th>Status</th><th>Occurred</th><th>Description</th></tr>
+    {% for i in incident_reports %}
+    <tr><td>{{ i.severity }}</td><td>{{ i.status }}</td><td>{{ i.occurred_at }}</td><td>{{ i.description|truncatewords:15 }}</td></tr>
+    {% empty %}
+    <tr><td colspan="4">No incidents reported.</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Change log (admin edits only)</h2>
+  <table>
+    <tr><th>When</th><th>Who</th><th>Change</th></tr>
+    {% for c in changes %}
+    <tr><td>{{ c.action_time }}</td><td>{{ c.user }}</td><td>{{ c.get_change_message }}</td></tr>
+    {% empty %}
+    <tr><td colspan="3">No recorded changes.</td></tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

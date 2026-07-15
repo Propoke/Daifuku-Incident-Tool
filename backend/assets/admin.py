@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 
 from .access import SiteScopedAdminMixin
 from .models import (
@@ -117,14 +119,21 @@ class AssetConfigurationAssignmentInline(SuperuserOnlyEditMixin, admin.TabularIn
 
 @admin.register(Asset)
 class AssetAdmin(SiteScopedAdminMixin, admin.ModelAdmin):
-    # Customer-owned assets (terminal is null) fall out of this filter
-    # entirely for site-scoped users - see assets/access.py's module
-    # docstring.
+    # terminal is required for every asset regardless of ownership, so
+    # site-scoping applies uniformly - see assets/access.py.
     site_lookup = "terminal__site_id"
-    list_display = ("tag", "name", "ownership", "terminal", "customer_site", "status", "criticality")
-    list_filter = ("ownership", "status", "criticality")
+    list_display = ("tag", "name", "owner_customer", "terminal", "status", "criticality")
+    list_filter = ("owner_customer", "status", "criticality")
     search_fields = ("tag", "name", "serial_number")
+    readonly_fields = ("history_link",)
     inlines = [AssetConfigurationAssignmentInline]
+
+    @admin.display(description="History")
+    def history_link(self, obj):
+        if obj.pk is None:
+            return "-"
+        url = reverse("asset-history", args=[obj.pk])
+        return format_html('<a href="{}">Tickets, configuration, permits, incidents, and changes</a>', url)
 
 
 @admin.register(AssetConfigurationAssignment)

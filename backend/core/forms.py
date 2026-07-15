@@ -19,5 +19,6 @@ class IssueReportForm(forms.ModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        queryset = Asset.objects.filter(ownership=Asset.Ownership.INTERNAL)
-        self.fields["asset"].queryset = scope_queryset_to_sites(user, queryset, "terminal__site_id")
+        # Site access is the only gate now - any asset at the user's site
+        # is reportable, internally owned or customer-owned alike.
+        self.fields["asset"].queryset = scope_queryset_to_sites(user, Asset.objects.all(), "terminal__site_id")
