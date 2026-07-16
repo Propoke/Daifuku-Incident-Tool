@@ -61,13 +61,19 @@ def get_sla_status(work_order, as_of=None):
     return result
 
 
-def breached_open_work_orders():
+def breached_open_work_orders(user=None):
     """Open (non-CLOSED) work orders whose SLA response or resolution
     target is past due - either "breached" (work started/closed after the
     target) or "overdue" (target has passed and work hasn't even started
     yet, per get_sla_status's own distinction). Both mean an SLA problem a
     manager should hear about, so the digest doesn't split them the way
     reporting.services.sla_summary()'s dashboard counts do.
+
+    When `user` is given, results are site-scoped to that user's
+    accessible sites (assets.access) - the daily digest sends per-recipient
+    so a manager assigned to one site never sees another site's tickets,
+    the same visibility gate every other surface enforces. Called with no
+    user, it's unscoped (all breaches).
 
     Used by core.notifications for the daily SLA-breach digest email -
     kept here rather than in reporting/services.py since it returns
@@ -78,6 +84,12 @@ def breached_open_work_orders():
         .select_related("asset__service_contract")
         .prefetch_related("status_changes")
     )
+    if user is not None:
+        # Imported here, not at module top, to keep sla.py free of an
+        # assets.access dependency for every other caller of this module.
+        from assets.access import scope_queryset_to_sites
+
+        queryset = scope_queryset_to_sites(user, queryset, "asset__terminal__site_id")
     results = []
     for work_order in queryset:
         status = get_sla_status(work_order)

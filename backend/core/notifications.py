@@ -55,48 +55,57 @@ def notify_daily_digest():
     """SLA-breach summary to Management/Incident Manager, low-stock summary
     to Spare Parts Manager. Called from core.tasks.send_daily_digest_task on
     an admin-editable Celery beat schedule (same DatabaseScheduler pattern
-    as PM generation)."""
+    as PM generation).
+
+    Sent per-recipient and site-scoped: a manager assigned to one site
+    only ever gets that site's breaches/low-stock, never another site's -
+    the same visibility gate (assets.access) every other surface enforces.
+    Management/Incident Manager/Spare Parts Manager are all site-scoped
+    roles (not in access.BYPASS_GROUPS), so a global "everything to
+    everyone" digest was the one place that leaked cross-site asset tags,
+    ticket titles, and SKUs. Admin/OEM members of these groups get an
+    unrestricted view (get_accessible_site_ids returns None), same as
+    everywhere else.
+    """
     from django.contrib.auth import get_user_model
     from django.db.models import F
 
+    from assets.access import get_accessible_site_ids
     from inventory.models import StockLevel
     from workorders.sla import breached_open_work_orders
 
     User = get_user_model()
 
-    breached = breached_open_work_orders()
-    if breached:
-        recipients = (
-            User.objects.filter(groups__name__in=["Management", "Incident Manager"])
-            .exclude(email="")
-            .values_list("email", flat=True)
-            .distinct()
-        )
-        lines = [f"{wo} - asset {wo.asset}" for wo in breached]
-        _send(
-            f"[CMMS] {len(breached)} work order(s) breaching SLA",
-            "The following open work orders have breached their SLA target:\n\n" + "\n".join(lines),
-            recipients,
-        )
-
-    low_stock = list(
-        StockLevel.objects.filter(quantity_on_hand__lte=F("min_quantity")).select_related(
+    def scoped_low_stock(user):
+        queryset = StockLevel.objects.filter(quantity_on_hand__lte=F("min_quantity")).select_related(
             "spare_part", "stock_location__site"
         )
-    )
-    if low_stock:
-        recipients = (
-            User.objects.filter(groups__name="Spare Parts Manager")
-            .exclude(email="")
-            .values_list("email", flat=True)
-            .distinct()
-        )
-        lines = [
-            f"{sl.spare_part.sku} @ {sl.stock_location} - {sl.quantity_on_hand} on hand (min {sl.min_quantity})"
-            for sl in low_stock
-        ]
-        _send(
-            f"[CMMS] {len(low_stock)} spare part(s) at or below reorder threshold",
-            "The following stock levels are at or below their reorder threshold:\n\n" + "\n".join(lines),
-            recipients,
-        )
+        site_ids = get_accessible_site_ids(user)
+        if site_ids is not None:
+            queryset = queryset.filter(stock_location__site_id__in=site_ids)
+        return list(queryset)
+
+    for user in User.objects.filter(
+        groups__name__in=["Management", "Incident Manager"]
+    ).exclude(email="").distinct():
+        breached = breached_open_work_orders(user=user)
+        if breached:
+            lines = [f"{wo} - asset {wo.asset}" for wo in breached]
+            _send(
+                f"[CMMS] {len(breached)} work order(s) breaching SLA",
+                "The following open work orders have breached their SLA target:\n\n" + "\n".join(lines),
+                [user.email],
+            )
+
+    for user in User.objects.filter(groups__name="Spare Parts Manager").exclude(email="").distinct():
+        low_stock = scoped_low_stock(user)
+        if low_stock:
+            lines = [
+                f"{sl.spare_part.sku} @ {sl.stock_location} - {sl.quantity_on_hand} on hand (min {sl.min_quantity})"
+                for sl in low_stock
+            ]
+            _send(
+                f"[CMMS] {len(low_stock)} spare part(s) at or below reorder threshold",
+                "The following stock levels are at or below their reorder threshold:\n\n" + "\n".join(lines),
+                [user.email],
+            )
