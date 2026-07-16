@@ -13,6 +13,8 @@ Builds on `docs/cmms-feature-draft.md`. Covers tech stack, deployment topology, 
 
 ## Tech Stack Recommendation
 
+> **As-built note (kept current):** the backend, both auth paths, PostgreSQL, Celery/Redis, and Traefik are all built and in the repo. **Two rows below are still planned, not built:** the **React frontend** was never started — the actual UI is Django admin + a handful of custom Django templates (`/reports/`, `/dispatch/`, `/portal/`, helpdesk) + the installable technician **PWA** at `/app/` (vanilla JS, no React); and **object storage (MinIO)** is not wired up — attachments/media currently live on local disk (served by WhiteNoise/`django.views.static`, see `docs/proxmox-deployment.md` and `docs/TODO.md`). The rationale in those two rows still stands as the intended direction; they just haven't happened yet.
+
 | Layer | Choice | Why |
 |---|---|---|
 | Backend | **Python + Django + Django REST Framework** | Django admin gives a working CRUD UI for Assets/Items/Configurations almost for free — directly supports the "walking skeleton" recommendation in the feature draft's risk audit (validate the config data model with real data before building a polished frontend). Mature migrations, mature OIDC libraries, strong ecosystem for a small team to maintain long-term. |
@@ -30,7 +32,7 @@ This isn't the only viable stack (Node/NestJS or Java/Spring Boot were both cons
 
 ## Deployment Topology
 
-One Proxmox **VM** (not LXC — avoids Docker-in-LXC nesting quirks, and a VM backs up cleanly as a single unit via PBS), running Docker Compose with these services:
+One Proxmox **VM** (not LXC — avoids Docker-in-LXC nesting quirks, and a VM backs up cleanly as a single unit via PBS), running Docker Compose. The diagram below is the **target** topology; rows marked *(planned)* aren't in the current `docker-compose.yml` yet (see the as-built note above). What actually ships today is: `traefik`, `backend` (Gunicorn — REST API + admin + the Django-template UIs + the PWA, static served by WhiteNoise), `celery-worker`, `celery-beat`, `postgres`, `redis`.
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -38,14 +40,13 @@ One Proxmox **VM** (not LXC — avoids Docker-in-LXC nesting quirks, and a VM ba
 │                                                       │
 │  traefik (reverse proxy, TLS)                        │
 │    │                                                 │
-│    ├─ django-app (Gunicorn, REST API + admin)        │
-│    ├─ react-frontend (static build, served by app     │
-│    │                  or a small nginx container)     │
+│    ├─ django-app (Gunicorn, REST API + admin + PWA)  │
+│    ├─ react-frontend  ...................(planned)    │
 │    ├─ celery-worker                                   │
-│    ├─ celery-beat (scheduler: PM triggers, SLA checks) │
+│    ├─ celery-beat (scheduler: PM triggers, digest)    │
 │    ├─ postgres (data volume on separate disk/mount)   │
 │    ├─ redis (celery broker/result backend)            │
-│    └─ minio (documents/photos, separate data volume)  │
+│    └─ minio (documents/photos) .........(planned)     │
 └─────────────────────────────────────────────────────┘
 ```
 
