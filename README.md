@@ -31,6 +31,16 @@ DJANGO_SECRET_KEY=dev POSTGRES_DB=cmms POSTGRES_USER=<you> POSTGRES_HOST=localho
 
 `/healthz` and `/admin/` work immediately; `/` will redirect into the Entra OIDC flow, which needs real `OIDC_*` values (see below) to complete.
 
+## Tests
+
+```
+cd backend
+DJANGO_SECRET_KEY=dev POSTGRES_DB=cmms POSTGRES_USER=<you> POSTGRES_HOST=localhost \
+  ../.venv/bin/python manage.py test
+```
+
+The Django test runner creates its own throwaway test database (the DB role needs `CREATEDB`), runs all migrations into it — including the data migrations that seed the RBAC groups — and then the suite in `backend/*/tests.py`. Coverage focuses on the invariants that matter most and would silently regress: site-scoped access control and its fail-closed behavior, the append-only `ImmutableModel` guarantee, `WorkOrder.save()` side effects and assignment notifications, the per-recipient site-scoping of the daily digest, purchase-order receiving, meter/calendar PM generation, permit approval permission-gating, and the portal's per-customer scoping. CI runs the same suite on every push/PR (`.github/workflows/ci.yml`).
+
 ## Running the full stack (Traefik + TLS)
 
 1. Create a scoped Cloudflare API token for the DNS-01 challenge:

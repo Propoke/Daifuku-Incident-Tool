@@ -98,7 +98,7 @@ The Standard sizing above is scoped for **production**. Recommend a separate, sm
 
 ## CI/CD & Deploy Workflow
 
-- GitHub Actions on this repo: run tests/lint on every push and PR.
+- GitHub Actions on this repo: run the test suite on every push and PR — **implemented** in `.github/workflows/ci.yml` (spins up a Postgres 16 service, checks for missing migrations, runs `collectstatic` to validate the static pipeline, then runs the Django test suite in `backend/*/tests.py`). Lint (e.g. ruff/flake8) isn't wired in yet.
 - Deploy step: since the target is internal-network-only, a public GitHub-hosted runner can't reach the VM directly. Two options:
   - **Self-hosted GitHub Actions runner** on the internal network (registered to this repo), so Actions can `docker compose pull && up -d` on push to `main` — enables real CI/CD.
   - **Manual/scripted deploy** (a single `deploy.sh` invoked by hand or via SSH) for now, upgrading to a self-hosted runner once the workflow is proven.
